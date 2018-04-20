@@ -12,8 +12,6 @@ public class EntityMeta {
     private String idColumnFieldName;
     private Class<?> idColumnType;
 
-//    List<FieldMeta> fieldMetas = new ArrayList<>();
-
     private Map<String, FieldMeta> fieldMetas = new LinkedHashMap<>();
 
     public EntityMeta() {

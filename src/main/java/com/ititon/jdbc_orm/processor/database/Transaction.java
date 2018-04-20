@@ -59,7 +59,6 @@ public class Transaction implements Connection {
 
     @Override
     public void close() throws SQLException {
-        System.out.println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
         try {
             TransactionManager.getInstance().freeConnection(this);
         } catch (DefaultOrmException e) {

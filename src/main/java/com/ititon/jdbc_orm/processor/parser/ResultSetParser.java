@@ -1,21 +1,19 @@
 package com.ititon.jdbc_orm.processor.parser;
 
 
-
-import com.ititon.jdbc_orm.annotation.FetchType;
-import com.ititon.jdbc_orm.annotation.ManyToMany;
-import com.ititon.jdbc_orm.annotation.OneToMany;
+import com.ititon.jdbc_orm.annotation.*;
 import com.ititon.jdbc_orm.meta.EntityMeta;
 import com.ititon.jdbc_orm.meta.FieldMeta;
 import com.ititon.jdbc_orm.processor.CacheProcessor;
 import com.ititon.jdbc_orm.util.ReflectionUtil;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
 
-public class Parser {
+public class ResultSetParser {
 
     private CacheProcessor cacheProcessor = CacheProcessor.getInstance();
 
@@ -25,14 +23,9 @@ public class Parser {
         if (entityMeta == null) {
             return null;
         }
-        Object entity = ReflectionUtil.newInstance(entityMeta.getEntityClassName());;
-//        if (entity == null || !ReflectionUtil.invokeGetter(entity, idColumnFieldName).equals(id)) {
-//            entity = ReflectionUtil.newInstance(entityMeta.getEntityClassName());
-//        }
+        Object entity = ReflectionUtil.newInstance(entityMeta.getEntityClassName());
 
         fillEntity(entityMeta, entity, resultSet, processedObjects);
-
-
         return entity;
 
     }
@@ -91,76 +84,58 @@ public class Parser {
                     EntityMeta joinEntityMeta = cacheProcessor.getMeta(joinEntityClass);
                     Object joinEntity = ReflectionUtil.newInstance(joinEntityMeta.getEntityClassName());
                     processedObjects.add(new ProcessedObject(entity.getClass(), field.getFieldName()));
+                    Map<Class<? extends Annotation>, Annotation> fieldAnnotations = field.getAnnotations();
 
-//                    if (field.getAnnotations().containsKey(ManyToMany.class)) {
-//                        ManyToMany manyToMany = (ManyToMany) field.getAnnotations().get(ManyToMany.class);
-//                        fillEntity(joinEntityMeta, joinEntity, resultSet, processedObjects);
-//                        fillCollectionOf(entity, field, joinEntity, joinEntityMeta, manyToMany.fetch());
-//                    } else if (field.getAnnotations().containsKey(OneToMany.class)) {
-//                        OneToMany oneToMany = (OneToMany) field.getAnnotations().get(OneToMany.class);
-//                        fillEntity(joinEntityMeta, joinEntity, resultSet, processedObjects);
-//                        fillCollectionOf(entity, field, joinEntity, joinEntityMeta, oneToMany.fetch());
-//                    }
-
-                    if (field.getAnnotations().containsKey(ManyToMany.class)
-                            || field.getAnnotations().containsKey(OneToMany.class)) {
+                    if (fieldAnnotations.containsKey(ManyToMany.class)
+                            || fieldAnnotations.containsKey(OneToMany.class)) {
 
                         FetchType fetchType = null;
 
-                        ManyToMany manyToMany = (ManyToMany) field.getAnnotations().get(ManyToMany.class);
+                        ManyToMany manyToMany = (ManyToMany) fieldAnnotations.get(ManyToMany.class);
 
                         if (manyToMany != null) {
                             fetchType = manyToMany.fetch();
                         } else {
-                            OneToMany oneToMany = (OneToMany) field.getAnnotations().get(OneToMany.class);
+                            OneToMany oneToMany = (OneToMany) fieldAnnotations.get(OneToMany.class);
                             fetchType = oneToMany.fetch();
                         }
 
-                        fillEntity(joinEntityMeta, joinEntity, resultSet, processedObjects);
-
-
                         if (fetchType.equals(FetchType.EAGER)) {
-                            Object idGetter = ReflectionUtil.invokeGetter(joinEntity, joinEntityMeta.getIdColumnFieldName());
+                            fillEntity(joinEntityMeta, joinEntity, resultSet, processedObjects);
+                            Object id = ReflectionUtil.invokeGetter(joinEntity, joinEntityMeta.getIdColumnFieldName());
 
-                            if (idGetter != null && !Objects.equals(idGetter, 0L)) {
+                            if (id != null && !Objects.equals(id, 0L)) {
                                 ///////**** Здесь вызывается геттер из оновной ентити ****\\\\\\\\\
                                 Object collection = ReflectionUtil.invokeGetter(entity, field.getFieldName());
                                 Method collectionAddMethod = ReflectionUtil.getMethod(collection.getClass(), "add", Object.class);
                                 ReflectionUtil.invokeMethod(collection, collectionAddMethod, joinEntity);
                             }
                         }
+                    } else if (fieldAnnotations.containsKey(OneToOne.class) || fieldAnnotations.containsKey(ManyToOne.class)) {
+
+                        FetchType fetchType = null;
+                        OneToOne oneToOne = (OneToOne) fieldAnnotations.get(OneToOne.class);
+                        if (oneToOne != null) {
+                            fetchType = oneToOne.fetch();
+                        } else {
+                            ManyToOne manyToOne = (ManyToOne) fieldAnnotations.get(ManyToOne.class);
+                            fetchType = manyToOne.fetch();
+                        }
+
+                        if (fetchType.equals(FetchType.EAGER)) {
+                            fillEntity(joinEntityMeta, joinEntity, resultSet, processedObjects);
+                            Object id = ReflectionUtil.invokeGetter(joinEntity, joinEntityMeta.getIdColumnFieldName());
+                            if (id != null && !Objects.equals(id, 0L)) {
+                                ReflectionUtil.invokeSetter(entity, field.getFieldName(), joinEntity);
+                            }
+
+                        }
+                        
                     }
                 }
             }
         }
     }
-
-
-//    private void fillCollectionOf(Object fillableEntity, FieldMeta fillableEntityField, Object entityToAdd, EntityMeta entityToAddMeta, FetchType fetchType) {
-//        if (fetchType.equals(FetchType.EAGER)) {
-//            Object idGetter = ReflectionUtil.invokeGetter(entityToAdd, entityToAddMeta.getIdColumnFieldName());
-//            if (idGetter != null && !Objects.equals(idGetter, 0L)) {
-//                ///////**** Здесь вызывается геттер из оновной ентити ****\\\\\\\\\
-//                Object collection = ReflectionUtil.invokeGetter(fillableEntity, fillableEntityField.getFieldName());
-//                Method collectionAddMethod = ReflectionUtil.getMethod(collection.getClass(), "add", Object.class);
-//                ReflectionUtil.invokeMethod(collection, collectionAddMethod, entityToAdd);
-//            }
-//        }
-//    }
-
-//    private FetchType getFetchType(final FieldMeta fieldMeta) {
-//        ManyToMany manyToMany = (ManyToMany) fieldMeta.getAnnotations().get(ManyToMany.class);
-//        FetchType fetchType;
-//
-//        if (manyToMany != null) {
-//            fetchType = manyToMany.fetch();
-//        } else {
-//            OneToMany oneToMany = (OneToMany) fieldMeta.getAnnotations().get(OneToMany.class);
-//            fetchType = oneToMany.fetch();
-//        }
-//        return fetchType;
-//
-//    }
 
 
     private class ProcessedObject {

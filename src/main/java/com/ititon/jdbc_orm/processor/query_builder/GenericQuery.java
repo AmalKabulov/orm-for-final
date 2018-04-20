@@ -18,12 +18,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public abstract class QueryBuilder {
+public abstract class GenericQuery {
 
     private static final CacheProcessor CACHE_PROCESSOR = CacheProcessor.getInstance();
+    private static final SelectQuery SELECT_QUERY = SelectQuery.getInstance();
 
 
-    public static String countQuery(final Class<? /*extends BaseEntity*/> clazz) throws  DefaultOrmException {
+    public static String buildCountQuery(final Class<? /*extends BaseEntity*/> clazz) throws DefaultOrmException {
 
         EntityMeta entityMeta = CACHE_PROCESSOR.getMeta(clazz);
         Assert.notNull(entityMeta, "entity " + clazz + " not found");
@@ -37,22 +38,14 @@ public abstract class QueryBuilder {
                 ";";
     }
 
-    public static String findAllQuery(final Class<? /*extends BaseEntity*/> clazz) throws DefaultOrmException {
-
-        EntityMeta entityMeta = CACHE_PROCESSOR.getMeta(clazz);
-        Assert.notNull(entityMeta, "entity " + clazz + " not found");
-
-        String tableName = entityMeta.getTableName();
-        String columns = getColumns(entityMeta);
-
-        return "select " + columns + " from " + tableName + ";";
+    public static String buildFindAllQuery(final Class<? /*extends BaseEntity*/> clazz) throws DefaultOrmException {
+        return SELECT_QUERY.buildFindAllQuery(clazz);
 
     }
 
 
-
     public static String findByLimit(final Class<? /*extends BaseEntity*/> clazz, final int skip, final int count) throws DefaultOrmException {
-        String findAllQuery = findAllQuery(clazz);
+        String findAllQuery = buildFindAllQuery(clazz);
         StringBuilder limitQuery = new StringBuilder(findAllQuery);
         limitQuery.setLength(limitQuery.length() - 1);
 
@@ -65,17 +58,15 @@ public abstract class QueryBuilder {
         EntityMeta entityMeta = CACHE_PROCESSOR.getMeta(clazz);
         Assert.notNull(entityMeta, "entity " + clazz + " not found");
 
-        String tableName = entityMeta.getTableName();
-        String idColumnName = entityMeta.getIdColumnName();
-        String columns = getColumns(entityMeta);
+        String findAllQuery = buildFindAllQuery(clazz);
+        StringBuilder byIdQuery = new StringBuilder(findAllQuery);
+        byIdQuery.setLength(byIdQuery.length() - 1);
 
 
-        return "select " +
-                columns +
-                " from " +
-                tableName +
-                " where " +
-                idColumnName + " = " + id + ";";
+        return byIdQuery.append(" where ")
+                .append(entityMeta.getTableName()).append(".").append(entityMeta.getIdColumnName())
+                .append(" = ")
+                .append(id).append(";").toString();
 
     }
 

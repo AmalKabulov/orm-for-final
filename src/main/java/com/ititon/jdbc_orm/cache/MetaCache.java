@@ -11,7 +11,7 @@ public class MetaCache<K, V> {
 
     public MetaCache(Map<K, V> values) {
         Objects.requireNonNull(values);
-        LinkedHashMap newMap = new LinkedHashMap<>(values);
+        LinkedHashMap<K, V> newMap = new LinkedHashMap<>(values);
         this.values = Collections.unmodifiableMap(newMap);
     }
 

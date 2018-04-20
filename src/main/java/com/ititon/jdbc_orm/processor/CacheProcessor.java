@@ -75,8 +75,8 @@ public class CacheProcessor {
 //            Map<String, String> methodsMeta = new HashMap<>();
 //
 //            for (Method method : methods) {
-//                if (method.isAnnotationPresent(Query.class)) {
-//                    Query query = method.getAnnotation(Query.class);
+//                if (method.isAnnotationPresent(GenericQuery.class)) {
+//                    GenericQuery query = method.getAnnotation(GenericQuery.class);
 //                    methodsMeta.put(method.getName(), query.value());
 //                }
 //            }

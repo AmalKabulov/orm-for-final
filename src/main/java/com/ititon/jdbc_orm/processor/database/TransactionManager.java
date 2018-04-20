@@ -9,8 +9,6 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TransactionManager {
-
-
     private static TransactionManager instance;
 
     private AtomicBoolean initialized = new AtomicBoolean(false);
