@@ -24,7 +24,7 @@ public class MetaCache<K, V> {
     }
 
     /**
-     * Searches in metacache by key;
+     * Searches in metacache by key.
      * @param key
      * @return Value
      */
