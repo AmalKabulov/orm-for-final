@@ -9,9 +9,15 @@ import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ *Cache for entities
+ */
 public class EntityCache/*<K extends BaseEntity>*/ /*implements Cache1<EntityCache.Key<ID, K>, K>*/ {
-
+    /**
+     *Object lifetime in cache
+     */
     private final long timeToLive;
+
     private ConcurrentHashMap<Key, CacheObject> values;
 
     public EntityCache(final long timeToLive, final long idleInterval, final int maxItems) {
@@ -23,6 +29,11 @@ public class EntityCache/*<K extends BaseEntity>*/ /*implements Cache1<EntityCac
         }
     }
 
+
+    /**
+     * Daemon thread which cleans the cache after a specified amount of time
+     * @param idleInterval
+     */
     private void startDaemonThread(final long idleInterval) {
         final Thread thread = new Thread(() -> {
             while (true) {
@@ -39,7 +50,15 @@ public class EntityCache/*<K extends BaseEntity>*/ /*implements Cache1<EntityCac
     }
 
 
-
+    /**
+     * Retrieves objects from the cache by id and Class
+     * if cache. For this, method generates a special key
+     * and then searches in cache by this.key;
+     * If there is no object in the cache return null;
+     * @param id
+     * @param clazz
+     * @return Object if found else null;
+     */
     @SuppressWarnings("unchecked")
     public /*<K extends BaseEntity> K*/ Object get(final Serializable id, final Class<?/*extends BaseEntity*/> clazz) {
         final Key key = new Key(id, clazz);
@@ -50,6 +69,14 @@ public class EntityCache/*<K extends BaseEntity>*/ /*implements Cache1<EntityCac
         return null;
     }
 
+    /**
+     * Inserts an object into the cache.
+     * For this, this method creates a special key
+     * which contains id of entity and entity class
+     * and a special object 'CacheObject'
+     * and then inserts entity.
+     * @param entity
+     */
     @SuppressWarnings("unchecked")
     public void put(final /*BaseEntity*/ Object entity) {
         final Key key = new Key(getPrimaryKey(entity), entity.getClass());
@@ -57,6 +84,14 @@ public class EntityCache/*<K extends BaseEntity>*/ /*implements Cache1<EntityCac
     }
 
 
+    /**
+     * Removes entity by id and entity class.
+     * For this?, method also generates a special key
+     * and then searches by this key in cache. If an entity is found,
+     * removes this;
+     * @param id
+     * @param clazz
+     */
     public void remove(final Serializable id, final Class<? /*extends BaseEntity*/> clazz) {
         final Key key = new Key(id, clazz);
         if (getCacheObject(key) != null) {
@@ -64,7 +99,15 @@ public class EntityCache/*<K extends BaseEntity>*/ /*implements Cache1<EntityCac
         }
     }
 
-
+    /**
+     * Searches entities in cache by entity class.
+     * Then collects it to List and return;
+     * This method can work for a long time depending
+     * on the number of objects in the cache, because it
+     * retrieves all the items in cache.
+     * @param clazz
+     * @return List<Objects>
+     */
     public List<Object/*? extends BaseEntity*/> getByClass(final Class<? /*extends BaseEntity*/> clazz) {
         List<Object> entities = new ArrayList<>();
         values.forEach((k, v) -> {
@@ -76,6 +119,10 @@ public class EntityCache/*<K extends BaseEntity>*/ /*implements Cache1<EntityCac
         return entities;
     }
 
+    /**
+     * This method cleans the cache.
+     * Used by thread;
+     */
     private void cleanup() {
         final long now = System.currentTimeMillis();
         final Iterator<Map.Entry<Key, CacheObject>> iterator = this.values.entrySet().iterator();
@@ -93,6 +140,12 @@ public class EntityCache/*<K extends BaseEntity>*/ /*implements Cache1<EntityCac
 
     }
 
+
+    /**
+     * Searches CacheObject by special key;
+     * @param key
+     * @return CacheObject if not null;
+     */
     private CacheObject getCacheObject(Key key) {
         final CacheObject cacheObject = this.values.get(key);
         if (cacheObject == null) {
@@ -105,6 +158,10 @@ public class EntityCache/*<K extends BaseEntity>*/ /*implements Cache1<EntityCac
     }
 
 
+    /**
+     * Wrapper for entities class and fields;
+     * For generating complex composite keys;
+     */
     private class Key {
         private Class<?> clazz;
         private Serializable id;
@@ -133,7 +190,10 @@ public class EntityCache/*<K extends BaseEntity>*/ /*implements Cache1<EntityCac
     }
 
 
-
+    /**
+     * Wrapper for entities;
+     * Contains created time. By this.time thread deletes the object;
+     */
     private class CacheObject {
         private final long createdTime = System.currentTimeMillis();
         private final /*BaseEntity*/ Object entity;
@@ -144,6 +204,12 @@ public class EntityCache/*<K extends BaseEntity>*/ /*implements Cache1<EntityCac
     }
 
 
+    /**
+     * By Reflection calls getter of primary key of object;
+     * @param entity
+     * @param <T>
+     * @return
+     */
     @SuppressWarnings("unchecked")
     private  <T extends Serializable> T getPrimaryKey(Object entity) {
         T id = null;

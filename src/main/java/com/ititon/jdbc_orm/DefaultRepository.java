@@ -2,7 +2,7 @@ package com.ititon.jdbc_orm;
 
 import com.ititon.jdbc_orm.meta.EntityMeta;
 import com.ititon.jdbc_orm.processor.CacheProcessor;
-import com.ititon.jdbc_orm.processor.database.TransactionManager;
+import com.ititon.jdbc_orm.processor.database.DefaultConnectionPool;
 import com.ititon.jdbc_orm.processor.exception.DefaultOrmException;
 import com.ititon.jdbc_orm.processor.parser.ResultSetParser;
 import com.ititon.jdbc_orm.processor.query_builder.GenericQuery;
@@ -15,7 +15,7 @@ import java.util.List;
 
 public class DefaultRepository<E, ID extends Serializable> implements IDefaultRepository<E, ID> {
     private CacheProcessor cacheProcessor = CacheProcessor.getInstance();
-    private TransactionManager connectionPool = TransactionManager.getInstance();
+    private DefaultConnectionPool connectionPool = DefaultConnectionPool.getInstance();
 
 
     @SuppressWarnings("unchecked")

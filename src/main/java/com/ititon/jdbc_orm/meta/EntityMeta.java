@@ -3,6 +3,10 @@ package com.ititon.jdbc_orm.meta;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * Metadata of entity. Contains fields metadata;
+ * Used for creating entities meta cache;
+ */
 public class EntityMeta {
 
     private String entityClassName;

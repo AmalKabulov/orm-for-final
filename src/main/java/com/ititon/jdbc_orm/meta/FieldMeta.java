@@ -4,6 +4,10 @@ import java.lang.annotation.Annotation;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Metadata of entity fields.
+ * Used for creating entities meta cache;
+ */
 public class FieldMeta {
     private String fieldName;
     private String columnName;

@@ -8,8 +8,14 @@ import java.sql.SQLException;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class TransactionManager {
-    private static TransactionManager instance;
+
+/**
+ * Something like connection pool;
+ * Contains thread save collections of
+ * free connections and used connections
+ */
+public class DefaultConnectionPool {
+    private static DefaultConnectionPool instance;
 
     private AtomicBoolean initialized = new AtomicBoolean(false);
     private ArrayBlockingQueue<Connection> free;
@@ -18,17 +24,23 @@ public class TransactionManager {
     private int poolSize;
 
 
-    private TransactionManager() {
+    private DefaultConnectionPool() {
         poolSize = DSProperties.MAX_POOL_SIZE;
         free = new ArrayBlockingQueue<>(poolSize);
         inUse = new ArrayBlockingQueue<>(poolSize);
     }
 
-    public static TransactionManager getInstance() {
+    /**
+     * In DefaultConnectionPool not instantiated
+     * creates new instance of this,
+     * else returns already created instance
+     * @return DefaultConnectionPool
+     */
+    public static DefaultConnectionPool getInstance() {
         if (instance == null) {
-            synchronized (TransactionManager.class) {
+            synchronized (DefaultConnectionPool.class) {
                 if (instance == null) {
-                    instance = new TransactionManager();
+                    instance = new DefaultConnectionPool();
                 }
             }
         }
@@ -36,21 +48,35 @@ public class TransactionManager {
     }
 
 
+    /**
+     * Initializes collection of
+     * free connections;
+     * @throws DefaultOrmException
+     */
     public void init() throws DefaultOrmException {
 
         if (!initialized.get()) {
             for (int i = 0; i < poolSize; i++) {
-                free.offer(connector.beginTransaction());
+                free.offer(connector.getConnection());
             }
             initialized.set(true);
         }
 
     }
 
+
+    /**
+     * Retrieves free connection from collection of free connections
+     * and removes the head of this queue,
+     * inserts it into collection of used connections
+     * waiting if necessary until an element becomes available.
+     * @return
+     * @throws DefaultOrmException
+     */
     public Connection getConnection() throws DefaultOrmException {
 
         if (!initialized.get()) {
-            throw new DefaultOrmException("Connection pool not initialized");
+            throw new DefaultOrmException("ProxyConnection pool not initialized");
         }
         try {
             Connection connection = free.take();
@@ -62,10 +88,12 @@ public class TransactionManager {
     }
 
 
-
-
-
-    private void closeConnections(ArrayBlockingQueue<Connection> queue) throws DefaultOrmException {
+    /**
+     * Commits and closes connections;
+     * @param queue
+     * @throws DefaultOrmException
+     */
+    private void closeConnections(ArrayBlockingQueue<java.sql.Connection> queue) throws DefaultOrmException {
         if (initialized.get()) {
             Connection connection;
             while ((connection = queue.poll()) != null) {
@@ -75,7 +103,7 @@ public class TransactionManager {
                         connection.commit();
                     }
 
-                    ((Transaction) connection).closeDown();
+                    ((ProxyConnection) connection).closeDown();
                 } catch (SQLException e) {
                     throw new DefaultOrmException("Could not close connection");
                 }
@@ -83,6 +111,10 @@ public class TransactionManager {
         }
     }
 
+    /**
+     * Method loses all connections
+     * @throws DefaultOrmException
+     */
     public void destroy() throws DefaultOrmException {
         if (initialized.get()) {
             closeConnections(free);
@@ -94,10 +126,15 @@ public class TransactionManager {
     }
 
 
-    public void freeConnection(Connection connection) throws DefaultOrmException {
+    /**
+     * Method transfers connection from state in use to state free
+     * @param connection
+     * @throws DefaultOrmException
+     */
+    public void freeConnection(java.sql.Connection connection) throws DefaultOrmException {
         try {
             if (connection.isClosed()) {
-                throw new DefaultOrmException("Connection is already closed. This is incorrect action");
+                throw new DefaultOrmException("ProxyConnection is already closed. This is incorrect action");
             }
 
             if (!connection.getAutoCommit()) {
