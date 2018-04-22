@@ -21,8 +21,6 @@ import java.util.stream.Collectors;
 public abstract class GenericQuery {
 
     private static final CacheProcessor CACHE_PROCESSOR = CacheProcessor.getInstance();
-    private static final SelectQuery SELECT_QUERY = SelectQuery.getInstance();
-
 
     public static String buildCountQuery(final Class<? /*extends BaseEntity*/> clazz) throws DefaultOrmException {
 
@@ -39,7 +37,7 @@ public abstract class GenericQuery {
     }
 
     public static String buildFindAllQuery(final Class<? /*extends BaseEntity*/> clazz) throws DefaultOrmException {
-        return SELECT_QUERY.buildFindAllQuery(clazz);
+        return SelectQuery.buildFindAllQuery(clazz);
 
     }
 

@@ -58,4 +58,15 @@ public class FieldMeta {
     public void setAnnotations(Map<Class<? extends Annotation>, Annotation> annotations) {
         this.annotations = annotations;
     }
+
+    @Override
+    public String toString() {
+        return "FieldMeta{" +
+                "fieldName='" + fieldName + '\'' +
+                ", columnName='" + columnName + '\'' +
+                ", fieldType=" + fieldType +
+                ", fieldGenericType=" + fieldGenericType +
+                ", annotations=" + annotations +
+                '}';
+    }
 }

@@ -69,4 +69,16 @@ public class EntityMeta {
     public void setIdColumnType(Class<?> idColumnType) {
         this.idColumnType = idColumnType;
     }
+
+    @Override
+    public String toString() {
+        return "EntityMeta{" +
+                "entityClassName='" + entityClassName + '\'' +
+                ", tableName='" + tableName + '\'' +
+                ", idColumnName='" + idColumnName + '\'' +
+                ", idColumnFieldName='" + idColumnFieldName + '\'' +
+                ", idColumnType=" + idColumnType +
+                ", fieldMetas=" + fieldMetas +
+                '}';
+    }
 }

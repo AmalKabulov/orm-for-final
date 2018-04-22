@@ -33,7 +33,7 @@ public class ResultSetParser {
 
     public List<Object> parseComplex(final Class<?> entityClass, final ResultSet resultSet) throws SQLException {
         List<Object> entities = new ArrayList<>();
-        Set<ProcessedObject> processedObjects = new HashSet<>();
+
         Object entity = null;
         EntityMeta entityMeta = cacheProcessor.getMeta(entityClass);
         if (entityMeta == null) {
@@ -47,6 +47,7 @@ public class ResultSetParser {
 
 
         while (resultSet.next()) {
+            Set<ProcessedObject> processedObjects = new HashSet<>();
             String entityId = tableName + "." + idColumnName;
             Object id = resultSet.getObject(entityId, idColumnType);
 
@@ -81,7 +82,11 @@ public class ResultSetParser {
                     }
                 } else {
                     Class<?> joinEntityClass = field.getFieldGenericType();
+                    if (joinEntityClass == null) {
+                        joinEntityClass = field.getFieldType();
+                    }
                     EntityMeta joinEntityMeta = cacheProcessor.getMeta(joinEntityClass);
+
                     Object joinEntity = ReflectionUtil.newInstance(joinEntityMeta.getEntityClassName());
                     processedObjects.add(new ProcessedObject(entity.getClass(), field.getFieldName()));
                     Map<Class<? extends Annotation>, Annotation> fieldAnnotations = field.getAnnotations();

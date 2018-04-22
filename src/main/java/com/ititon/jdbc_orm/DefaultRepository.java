@@ -92,6 +92,9 @@ public class DefaultRepository<E, ID extends Serializable> implements IDefaultRe
 
         Object entity = null;
         String query = GenericQuery.findByIdQuery(entityClass, id);
+
+        System.out.println(query);
+
         try (Connection connection = connectionPool.getConnection();
              PreparedStatement preparedStatement = connection.prepareStatement(query)) {
 
