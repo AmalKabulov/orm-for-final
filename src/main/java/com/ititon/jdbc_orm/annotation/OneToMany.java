@@ -25,4 +25,16 @@ public @interface OneToMany {
      * the relationship is unidirectional.
      */
     String mappedBy() default "";
+
+
+    /**
+     * (Optional) The operations that must be cascaded to
+     * the target of the association.
+     * <p> Defaults to no operations being cascaded.
+     *
+     * <p> When the target collection is a {@link java.util.Map
+     * java.util.Map}, the <code>cascade</code> element applies to the
+     * map value.
+     */
+    CascadeType[] cascade() default {};
 }

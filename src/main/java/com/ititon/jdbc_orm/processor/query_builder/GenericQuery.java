@@ -68,7 +68,10 @@ public abstract class GenericQuery {
 
     }
 
-    public static String insertQuery(final Object entity) {
+    public static String insertQuery(final Object entity) throws DefaultOrmException {
+
+
+        InsertQuery.buildInsertQuery(entity).forEach((query) -> System.out.println("INSERT QUERY: " + query));
 
         Class<?> entityClass = entity.getClass();
         Map<String, String> columnsValues = getColumnsValues(entity);

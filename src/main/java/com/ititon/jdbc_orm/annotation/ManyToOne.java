@@ -18,4 +18,13 @@ public @interface ManyToOne {
      * persistence provider runtime.
      */
     FetchType fetch() default FetchType.LAZY;
+
+
+    /**
+     * (Optional) The operations that must be cascaded to
+     * the target of the association.
+     *
+     * <p> By default no operations are cascaded.
+     */
+    CascadeType[] cascade() default {};
 }

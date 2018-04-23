@@ -26,4 +26,16 @@ public @interface ManyToMany {
      */
     String mappedBy() default "";
 
+    /**
+     * (Optional) The operations that must be cascaded to the target
+     * of the association.
+     *
+     * <p> When the target collection is a {@link java.util.Map
+     * java.util.Map}, the <code>cascade</code> element applies to the
+     * map value.
+     *
+     * <p> Defaults to no operations being cascaded.
+     */
+    CascadeType[] cascade() default {};
+
 }

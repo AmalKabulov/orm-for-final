@@ -25,4 +25,12 @@ public @interface OneToOne {
      * the relationship is unidirectional.
      */
     String mappedBy() default "";
+
+    /**
+     * (Optional) The operations that must be cascaded to
+     * the target of the association.
+     *
+     * <p> By default no operations are cascaded.
+     */
+    CascadeType[] cascade() default {};
 }
