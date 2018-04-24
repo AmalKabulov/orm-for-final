@@ -2,7 +2,9 @@ package com.ititon.jdbc_orm;
 
 import com.ititon.jdbc_orm.meta.EntityMeta;
 import com.ititon.jdbc_orm.processor.CacheProcessor;
+import com.ititon.jdbc_orm.processor.action.SelectEventListener;
 import com.ititon.jdbc_orm.processor.database.DefaultConnectionPool;
+import com.ititon.jdbc_orm.processor.event.SelectEvent;
 import com.ititon.jdbc_orm.processor.exception.DefaultOrmException;
 import com.ititon.jdbc_orm.processor.parser.ResultSetParser;
 import com.ititon.jdbc_orm.processor.query_builder.GenericQuery;
@@ -14,8 +16,9 @@ import java.sql.*;
 import java.util.List;
 
 public class DefaultRepository<E, ID extends Serializable> implements IDefaultRepository<E, ID> {
-    private CacheProcessor cacheProcessor = CacheProcessor.getInstance();
-    private DefaultConnectionPool connectionPool = DefaultConnectionPool.getInstance();
+    private final CacheProcessor cacheProcessor = CacheProcessor.getInstance();
+    private final DefaultConnectionPool connectionPool = DefaultConnectionPool.getInstance();
+    private final SelectEventListener selectEventListener = new SelectEventListener();
 
 
     @SuppressWarnings("unchecked")
@@ -38,11 +41,16 @@ public class DefaultRepository<E, ID extends Serializable> implements IDefaultRe
                 System.out.println("Returning from cache");
                 return ((List<E>) entitiesFromCache);
             }
-
-            ResultSetParser resultSetParser = new ResultSetParser();
             ResultSet resultSet = preparedStatement.executeQuery();
+            selectEventListener.onSelect(new SelectEvent(entityClass, resultSet));
+
+            System.out.println("ADDED TO CACHE AND RETURNING....");
+            return (List<E>) cacheProcessor.getEntitiesByClass(entityClass);
+
+//            ResultSetParser resultSetParser = new ResultSetParser();
+
 //            parserManager.complexParse(entityClass, resultSet);
-            return (List<E>) resultSetParser.parseComplex(entityClass, resultSet);
+//            return (List<E>) resultSetParser.parseComplex(entityClass, resultSet);
 
 //            Assert.notEmpty(entities, "Nothing was found");
 //            return entities;

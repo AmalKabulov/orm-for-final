@@ -25,6 +25,8 @@ public abstract class InsertQuery {
     }
 
 
+
+
     private static void buildComplexInsertQuery(final Object entity,
                                                 final List<String> insertQueries,
                                                 final List<String> joinqueries,
