@@ -171,22 +171,22 @@ public abstract class InsertQuery {
     }
 
 
-    /**
-     * Finds field meta by mappedby value (which takes
-     * from annotation ManyToMany, OneToMany and OneToOne)
-     * from collection of field metas;
-     *
-     * @param fieldMetas
-     * @param mappedFieldName
-     * @return
-     * @throws DefaultOrmException
-     */
-    private static FieldMeta findFieldMetaByMappedFieldName(final Collection<FieldMeta> fieldMetas, final String mappedFieldName) throws DefaultOrmException {
-        return fieldMetas
-                .stream()
-                .filter(f -> f.getFieldName().equals(mappedFieldName)).findAny()
-                .orElseThrow(() -> new DefaultOrmException("Mapped field: " + mappedFieldName + " not found"));
-    }
+//    /**
+//     * Finds field meta by mappedby value (which takes
+//     * from annotation ManyToMany, OneToMany and OneToOne)
+//     * from collection of field metas;
+//     *
+//     * @param fieldMetas
+//     * @param mappedFieldName
+//     * @return
+//     * @throws DefaultOrmException
+//     */
+//    private static FieldMeta findFieldMetaByMappedFieldName(final Collection<FieldMeta> fieldMetas, final String mappedFieldName) throws DefaultOrmException {
+//        return fieldMetas
+//                .stream()
+//                .filter(f -> f.getFieldName().equals(mappedFieldName)).findAny()
+//                .orElseThrow(() -> new DefaultOrmException("Mapped field: " + mappedFieldName + " not found"));
+//    }
 
 
 }
