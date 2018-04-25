@@ -75,7 +75,6 @@ public class SelectEventListener {
             processFieldMeta(resultSet, entityInfo);
         }
 
-//        fieldMetas.forEach(f -> processFieldMeta(selectEvent, f));
     }
 
 
