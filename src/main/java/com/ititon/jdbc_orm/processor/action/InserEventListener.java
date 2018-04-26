@@ -20,15 +20,22 @@ public class InserEventListener {
     public void onInsert(final InsertEvent event) {
         Object entity = event.getEntity();
         EntityMeta entityMeta = cacheProcessor.getMeta(entity.getClass());
+    }
+
+    private void onInsert(final EntityMeta entityMeta) {
+
+
         Collection<FieldMeta> fieldMetas = entityMeta.getFieldMetas().values();
         Map<String, String> columnsValues = new LinkedHashMap<>();
 
         for (FieldMeta fieldMeta : fieldMetas) {
             Map<Class<? extends Annotation>, Annotation> annotations = fieldMeta.getAnnotations();
+            Object result = ReflectionUtil.invokeGetter(entity, fieldMeta.getFieldName());
             if (annotations.containsKey(Id.class)) {
 
             } else if (annotations.containsKey(Column.class)) {
-
+                //TODO may be nullPointer - string.valueOf()
+                columnsValues.put(fieldMeta.getColumnName(), String.valueOf(result));
             } else if (annotations.containsKey(ManyToMany.class)) {
 
             } else if (annotations.containsKey(OneToMany.class)) {
@@ -42,6 +49,28 @@ public class InserEventListener {
 
     }
 
+
+    private void handleFieldWiithOneToManyAssociation(final Object mainEntity,
+                                                      final FieldMeta fieldMeta,
+                                                      final Set<ProcessedObject> processedObjects) {
+
+        ProcessedObject processedObject = new ProcessedObject(mainEntity.getClass(), fieldMeta.getFieldName());
+        if (!processedObjects.contains(processedObject)) {
+            processedObjects.add(processedObject);
+
+            OneToMany oneToMany = (OneToMany) fieldMeta.getAnnotations().get(OneToMany.class);
+            CascadeType[] cascade = oneToMany.cascade();
+            boolean contains = Arrays.asList(cascade).contains(CascadeType.SAVE_UPDATE);
+            if (!contains) {
+                return;
+            }
+
+            Class<?> fieldGenericType = fieldMeta.getFieldGenericType();
+            EntityMeta joinEntity = cacheProcessor.getMeta(fieldGenericType);
+            onInsert(joinEntity);
+        }
+
+    }
 
     public void handleFieldWithManyToManyAnnotation(final Object mainEntity,
                                                     final FieldMeta fieldMeta,
