@@ -2,8 +2,10 @@ package com.ititon.jdbc_orm;
 
 import com.ititon.jdbc_orm.meta.EntityMeta;
 import com.ititon.jdbc_orm.processor.CacheProcessor;
+import com.ititon.jdbc_orm.processor.action.InsertEventListener;
 import com.ititon.jdbc_orm.processor.action.SelectEventListener;
 import com.ititon.jdbc_orm.processor.database.DefaultConnectionPool;
+import com.ititon.jdbc_orm.processor.event.InsertEvent;
 import com.ititon.jdbc_orm.processor.event.SelectEvent;
 import com.ititon.jdbc_orm.processor.exception.DefaultOrmException;
 import com.ititon.jdbc_orm.processor.parser.ResultSetParser;
@@ -19,6 +21,7 @@ public class DefaultRepository<E, ID extends Serializable> implements IDefaultRe
     private final CacheProcessor cacheProcessor = CacheProcessor.getInstance();
     private final DefaultConnectionPool connectionPool = DefaultConnectionPool.getInstance();
     private final SelectEventListener selectEventListener = new SelectEventListener();
+    private final InsertEventListener insertEventListener = new InsertEventListener();
 
 
     @SuppressWarnings("unchecked")
@@ -143,23 +146,30 @@ public class DefaultRepository<E, ID extends Serializable> implements IDefaultRe
         EntityMeta entityMeta = cacheProcessor.getMeta(entity.getClass());
         Assert.notNull(entityMeta, "entity: " + entity + " not found");
         String idColumnFieldName = entityMeta.getIdColumnFieldName();
+        Connection connection = connectionPool.getConnection();
 
-        try (Connection connection = connectionPool.getConnection();
-             PreparedStatement preparedStatement = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
-            int result = preparedStatement.executeUpdate();
-//            Assert.notZero(result, "inserting entity: " + entity + " failed");
-            ResultSet resultSet = preparedStatement.getGeneratedKeys();
-//            Assert.isTrue(resultSet.next(), "inserting entity: " + entity + " failed. No id obtained");
-            //TODO может быть не лонг
-            while (resultSet.next()) {
-                Long id = resultSet.getLong(1);
-                ReflectionUtil.invokeSetter(entity, idColumnFieldName, id);
-            }
+        try (Connection c = connection) {
 
-//            cacheProcessor.putEntity(entity);
+            insertEventListener.onInsert(new InsertEvent(connection, entity));
+//            int result = preparedStatement.executeUpdate();
+////            Assert.notZero(result, "inserting entity: " + entity + " failed");
+//            ResultSet resultSet = preparedStatement.getGeneratedKeys();
+////            Assert.isTrue(resultSet.next(), "inserting entity: " + entity + " failed. No id obtained");
+//            //TODO может быть не лонг
+//            while (resultSet.next()) {
+//                Long id = resultSet.getLong(1);
+//                ReflectionUtil.invokeSetter(entity, idColumnFieldName, id);
+//            }
+//
+////            cacheProcessor.putEntity(entity);
             return entity;
 
         } catch (SQLException e) {
+            try {
+                connection.rollback();
+            } catch (SQLException e1) {
+                //TODO
+            }
             throw new DefaultOrmException("Error while saving entity: " + entity, e);
         }
     }

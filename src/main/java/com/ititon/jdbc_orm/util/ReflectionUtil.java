@@ -18,6 +18,7 @@ public class ReflectionUtil {
 
     public static Object invokeMethod(Object object, Method method, Object... args) {
         try {
+            method.setAccessible(true);
             return method.invoke(object, args);
         } catch (IllegalAccessException | InvocationTargetException e) {
             throw new ReflectionException("COULD NOT INVOKE METHOD " + method.getName() + " CAUSE: ", e);

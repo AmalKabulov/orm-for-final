@@ -81,11 +81,14 @@ public class ProxyConnection implements java.sql.Connection {
      */
     @Override
     public void rollback() throws SQLException {
+        System.out.println("ROLLBACK ");
         connection.rollback();
     }
 
     @Override
     public void close() throws SQLException {
+
+        System.out.println("AUTO CLOSING CONNECTION");
         try {
             DefaultConnectionPool.getInstance().freeConnection(this);
         } catch (DefaultOrmException e) {
