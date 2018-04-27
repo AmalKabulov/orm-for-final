@@ -62,6 +62,7 @@ public class InsertEventListener {
         }
 
         info.getProcessedObjects().add(entity);
+        Object entityId = null;
 
         for (FieldMeta fieldMeta : fieldMetas) {
             Map<Class<? extends Annotation>, Annotation> annotations = fieldMeta.getAnnotations();
@@ -69,8 +70,9 @@ public class InsertEventListener {
 
             info.setCurrentFieldMeta(fieldMeta);
             info.setGetterResult(result);
-
-            if (!annotations.containsKey(Id.class) && annotations.containsKey(Column.class)) {
+            if (annotations.containsKey(Id.class)) {
+                entityId = result;
+            } else if (!annotations.containsKey(Id.class) && annotations.containsKey(Column.class)) {
                 columnsValues.put(fieldMeta.getColumnName(), wrap(String.valueOf((Object) result)));
             } else if (annotations.containsKey(ManyToMany.class)) {
                 handleFieldWithManyToManyAnnotation(info);
@@ -83,33 +85,36 @@ public class InsertEventListener {
             }
         }
 
+        //TODO можно вынести - generateAndInvokeInsertQuery
+        if (entityId == null) {
+            String columns = String.join(", ", columnsValues.keySet());
+            String values = String.join(", ", columnsValues.values());
 
-        String columns = String.join(", ", columnsValues.keySet());
-        String values = String.join(", ", columnsValues.values());
+            String insertQuery = "insert into " +
+                    entityMeta.getTableName() +
+                    " (" + columns +
+                    ") values (" +
+                    values + ")" +
+                    ";";
 
-        String insertQuery = "insert into " +
-                entityMeta.getTableName() +
-                " (" + columns +
-                ") values (" +
-                values + ")" +
-                ";";
+            System.out.println("INSERT QUERY: " + insertQuery);
 
-        System.out.println("INSERT QUERY: " + insertQuery);
+            Connection connection = info.getConnection();
 
-        Connection connection = info.getConnection();
-        try (PreparedStatement preparedStatement =
-                     connection.prepareStatement(insertQuery, Statement.RETURN_GENERATED_KEYS)) {
+            System.out.println("DO TRY");
+            try (PreparedStatement preparedStatement =
+                         connection.prepareStatement(insertQuery, Statement.RETURN_GENERATED_KEYS)) {
 
-            preparedStatement.executeUpdate();
-            ResultSet resultSet = preparedStatement.getGeneratedKeys();
-            System.out.println("V BLOKE TRY");
-            boolean first = resultSet.first();
-            System.out.println("IS RESULT SET EMPTY ? " + first);
-            while (resultSet.next()) {
-                Object id = resultSet.getObject(1, entityMeta.getIdColumnType());
-                System.out.println("setted id is : " + id);
-                Object resultOfSetter = ReflectionUtil.invokeSetter(entity, entityMeta.getIdColumnFieldName(), id);
-                System.out.println("result of setter: " + resultOfSetter);
+                System.out.println("IN TRY");
+                preparedStatement.executeUpdate();
+                ResultSet resultSet = preparedStatement.getGeneratedKeys();
+                System.out.println("V BLOKE TRY");
+                while (resultSet.next()) {
+                    Object id = resultSet.getObject(1, entityMeta.getIdColumnType());
+                    System.out.println("setted id is : " + id);
+                    Object resultOfSetter = ReflectionUtil.invokeSetter(entity, entityMeta.getIdColumnFieldName(), id);
+                    System.out.println("result of setter: " + resultOfSetter);
+                }
             }
         }
 
@@ -448,7 +453,6 @@ public class InsertEventListener {
             this.innerEntityIdColumnName = innerEntityIdColumnName;
         }
     }
-
 
 
 }
