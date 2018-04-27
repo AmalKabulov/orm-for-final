@@ -93,13 +93,12 @@ public class DefaultConnectionPool {
      * @param queue
      * @throws DefaultOrmException
      */
-    private void closeConnections(ArrayBlockingQueue<java.sql.Connection> queue) throws DefaultOrmException {
+    private void closeConnections(ArrayBlockingQueue<Connection> queue) throws DefaultOrmException {
         if (initialized.get()) {
             Connection connection;
             while ((connection = queue.poll()) != null) {
                 try {
-                    if (!connection.getAutoCommit()) ;
-                    {
+                    if (!connection.getAutoCommit()){
                         connection.commit();
                     }
 
@@ -131,7 +130,7 @@ public class DefaultConnectionPool {
      * @param connection
      * @throws DefaultOrmException
      */
-    public void freeConnection(java.sql.Connection connection) throws DefaultOrmException {
+    public void freeConnection(Connection connection) throws DefaultOrmException {
         try {
             if (connection.isClosed()) {
                 throw new DefaultOrmException("ProxyConnection is already closed. This is incorrect action");

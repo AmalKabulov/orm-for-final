@@ -8,6 +8,7 @@ import com.ititon.jdbc_orm.util.ReflectionUtil;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +50,9 @@ public class MetaProcessor {
             }
 
             FieldMeta fieldMeta = createFieldMeta(field);
-            entityMeta.getFieldMetas().put(fieldMeta.getFieldName(), fieldMeta);
+            if (fieldMeta != null) {
+                entityMeta.getFieldMetas().put(fieldMeta.getFieldName(), fieldMeta);
+            }
         }
 
         return entityMeta;
@@ -58,18 +61,29 @@ public class MetaProcessor {
 
 
     private static FieldMeta createFieldMeta(final Field field) {
+        int modifiers = field.getModifiers();
+        if (Modifier.isStatic(modifiers) &&
+                Modifier.isFinal(modifiers)) {
+            return null;
+        }
+
+
         FieldMeta fieldMeta = new FieldMeta();
         fieldMeta.setFieldName(field.getName());
         fieldMeta.setFieldType(field.getType());
 
 
-        if (field.isAnnotationPresent(Column.class)) {
+        if (field.isAnnotationPresent(Column.class))
+
+        {
             Column column = field.getAnnotation(Column.class);
             String columnName = column.name();
             fieldMeta.setColumnName(columnName);
 
 
-        } else if (field.isAnnotationPresent(ManyToMany.class) || field.isAnnotationPresent(OneToMany.class)) {
+        } else if (field.isAnnotationPresent(ManyToMany.class) || field.isAnnotationPresent(OneToMany.class))
+
+        {
             fieldMeta.setFieldGenericType(ReflectionUtil.getFieldGenericType(field));
         }
 
