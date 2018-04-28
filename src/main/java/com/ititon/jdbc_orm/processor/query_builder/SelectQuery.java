@@ -1,5 +1,6 @@
 package com.ititon.jdbc_orm.processor.query_builder;
 
+import com.ititon.jdbc_orm.ProcessedObject;
 import com.ititon.jdbc_orm.annotation.*;
 import com.ititon.jdbc_orm.meta.EntityMeta;
 import com.ititon.jdbc_orm.meta.FieldMeta;
@@ -51,28 +52,29 @@ public abstract class SelectQuery {
 
         if (!processedMetas.contains(entityMeta.getEntityClassName())) {
             processedMetas.add(entityMeta.getEntityClassName());
+
             Collection<FieldMeta> fieldMetas = entityMeta.getFieldMetas().values();
             columns.add(getColumns(entityMeta));
 
             for (FieldMeta fieldMeta : fieldMetas) {
-
                 Map<Class<? extends Annotation>, Annotation> annotations = fieldMeta.getAnnotations();
                 String joinQuery = null;
-                EntityMeta joinEntityMeta = getEntityMetaByFieldMeta(fieldMeta);
 
                 if (annotations.containsKey(ManyToMany.class)) {
-                    joinQuery = buildManyToManyJoinQuery(entityMeta, fieldMeta);
+                    joinQuery = buildManyToManyJoinQuery(entityMeta, fieldMeta, processedMetas);
                 } else if (annotations.containsKey(ManyToOne.class)) {
-                    joinQuery = buildManyToOneJoinQuery(entityMeta, fieldMeta);
+                    joinQuery = buildManyToOneJoinQuery(entityMeta, fieldMeta, processedMetas);
                 } else if (annotations.containsKey(OneToMany.class)) {
-                    joinQuery = buildOneToManyJoinQuery(entityMeta, fieldMeta);
+                    joinQuery = buildOneToManyJoinQuery(entityMeta, fieldMeta, processedMetas);
                 } else if (annotations.containsKey(OneToOne.class)) {
-                    joinQuery = buildOneToOneJoinQuery(entityMeta, fieldMeta);
+                    joinQuery = buildOneToOneJoinQuery(entityMeta, fieldMeta, processedMetas);
                 }
 
                 if (joinQuery != null) {
+                    EntityMeta joinEntityMeta = getEntityMetaByFieldMeta(fieldMeta);
                     joinQueries.append(joinQuery);
                     buildComplexJoinQuery(joinEntityMeta, columns, processedMetas, joinQueries);
+
                 }
             }
         }
@@ -87,7 +89,12 @@ public abstract class SelectQuery {
      * @return
      */
     private static String buildManyToManyJoinQuery(final EntityMeta mainEntity,
-                                                   final FieldMeta fieldMeta) throws DefaultOrmException {
+                                                   final FieldMeta fieldMeta,
+                                                   final Set<String> processedMetas) throws DefaultOrmException {
+        EntityMeta joinEntity = getEntityMetaByFieldMeta(fieldMeta);
+        if (processedMetas.contains(joinEntity.getEntityClassName())) {
+            return null;
+        }
         Map<Class<? extends Annotation>, Annotation> annotations = fieldMeta.getAnnotations();
         ManyToMany manyToMany = (ManyToMany) annotations.get(ManyToMany.class);
 
@@ -98,18 +105,16 @@ public abstract class SelectQuery {
         JoinTable joinTable = null;
         boolean reverse = false;
         String mappedFieldName = manyToMany.mappedBy();
-        EntityMeta joinEntity = getEntityMetaByFieldMeta(fieldMeta);
+
+
         Collection<FieldMeta> fieldMetas = joinEntity.getFieldMetas().values();
 
 
         if (mappedFieldName.isEmpty()) {
             joinTable = (JoinTable) annotations.get(JoinTable.class);
             reverse = true;
-
         } else {
-
             FieldMeta field = findFieldMetaByMappedFieldName(fieldMetas, mappedFieldName);
-
             joinTable = (JoinTable) field.getAnnotations().get(JoinTable.class);
         }
 
@@ -124,7 +129,14 @@ public abstract class SelectQuery {
      * @param fieldMeta
      * @return
      */
-    private static String buildManyToOneJoinQuery(final EntityMeta mainEntity, final FieldMeta fieldMeta) {
+    private static String buildManyToOneJoinQuery(final EntityMeta mainEntity,
+                                                  final FieldMeta fieldMeta,
+                                                  final Set<String> processedMetas) {
+        EntityMeta joinEntityMeta = getEntityMetaByFieldMeta(fieldMeta);
+        if (processedMetas.contains(joinEntityMeta.getEntityClassName())) {
+            return null;
+        }
+
         Map<Class<? extends Annotation>, Annotation> fieldMetaAnnotations = fieldMeta.getAnnotations();
         ManyToOne manyToOne = (ManyToOne) fieldMetaAnnotations.get(ManyToOne.class);
 
@@ -136,9 +148,9 @@ public abstract class SelectQuery {
         JoinColumn joinColumnAnnotation = (JoinColumn) fieldMetaAnnotations.get(JoinColumn.class);
         String mainTableIdColumn = mainTableName + "." + joinColumnAnnotation.name();
 
-        EntityMeta innerEntityMeta = getEntityMetaByFieldMeta(fieldMeta);
-        String joinTableName = innerEntityMeta.getTableName();
-        String joinTableIdColumn = joinTableName + "." + innerEntityMeta.getIdColumnName();
+
+        String joinTableName = joinEntityMeta.getTableName();
+        String joinTableIdColumn = joinTableName + "." + joinEntityMeta.getIdColumnName();
 
         return buildJoinQuery(joinTableName, joinTableIdColumn, mainTableIdColumn);
     }
@@ -150,20 +162,28 @@ public abstract class SelectQuery {
      * @param fieldMeta
      * @return
      */
-    private static String buildOneToManyJoinQuery(final EntityMeta entityMeta, final FieldMeta fieldMeta) throws DefaultOrmException {
+    private static String buildOneToManyJoinQuery(final EntityMeta entityMeta,
+                                                  final FieldMeta fieldMeta,
+                                                  final Set<String> processedMetas) throws DefaultOrmException {
+
+        EntityMeta innerEntityMeta = getEntityMetaByFieldMeta(fieldMeta);
+        if (processedMetas.contains(innerEntityMeta.getEntityClassName())) {
+            return null;
+        }
+
         OneToMany oneToMany = (OneToMany) fieldMeta.getAnnotations().get(OneToMany.class);
         String mappedFieldName = oneToMany.mappedBy();
         if (oneToMany.fetch().equals(FetchType.LAZY)) {
             return null;
         }
 
-        EntityMeta innerEntity = getEntityMetaByFieldMeta(fieldMeta);
-        Collection<FieldMeta> fieldMetas = innerEntity.getFieldMetas().values();
+
+        Collection<FieldMeta> fieldMetas = innerEntityMeta.getFieldMetas().values();
         FieldMeta innerField = findFieldMetaByMappedFieldName(fieldMetas, mappedFieldName);
 
         JoinColumn joinColumnAnnotation = (JoinColumn) innerField.getAnnotations().get(JoinColumn.class);
 
-        String joinTableName = innerEntity.getTableName();
+        String joinTableName = innerEntityMeta.getTableName();
         String joinTableIdColumn = joinTableName + "." + joinColumnAnnotation.name();
         String mainTableIdColumn = entityMeta.getTableName() + "." + entityMeta.getIdColumnName();
 
@@ -178,11 +198,18 @@ public abstract class SelectQuery {
      * @param fieldMeta
      * @return
      */
-    private static String buildOneToOneJoinQuery(final EntityMeta entityMeta, final FieldMeta fieldMeta) throws DefaultOrmException {
+    private static String buildOneToOneJoinQuery(final EntityMeta entityMeta,
+                                                 final FieldMeta fieldMeta,
+                                                 final Set<String> processedMetas) throws DefaultOrmException {
+
+        EntityMeta innerEntityMeta = getEntityMetaByFieldMeta(fieldMeta);
+        if (processedMetas.contains(innerEntityMeta.getEntityClassName())) {
+            return null;
+        }
+
+
         Map<Class<? extends Annotation>, Annotation> fieldAnnotations = fieldMeta.getAnnotations();
         OneToOne oneToOne = (OneToOne) fieldAnnotations.get(OneToOne.class);
-        EntityMeta innerEntityMeta = getEntityMetaByFieldMeta(fieldMeta);
-
         if (oneToOne.fetch().equals(FetchType.LAZY)) {
             return null;
         }

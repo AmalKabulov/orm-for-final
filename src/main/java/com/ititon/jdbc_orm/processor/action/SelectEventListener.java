@@ -78,7 +78,7 @@ public class SelectEventListener {
 
     }
 
-    
+
     private void processFieldMeta(final ResultSet resultSet,
                                   final EntityInfo entityInfo) throws SQLException {
 
@@ -147,8 +147,8 @@ public class SelectEventListener {
         if (fetchType.equals(FetchType.EAGER)) {
 
             EntityInfo joinEntityInfo = new EntityInfo(entityInfo.getJoinEntity(),
-                                                       entityInfo.getJoinEntityMeta(),
-                                                       entityInfo.getProcessedObjects());
+                    entityInfo.getJoinEntityMeta(),
+                    entityInfo.getProcessedObjects());
 
             fillEntity(resultSet, joinEntityInfo);
             addEntityToCollectionOfMainEntity(entityInfo);
@@ -167,8 +167,8 @@ public class SelectEventListener {
         if (fetchType.equals(FetchType.EAGER)) {
 
             EntityInfo joinEntityInfo = new EntityInfo(entityInfo.getJoinEntity(),
-                                                       entityInfo.getJoinEntityMeta(),
-                                                       entityInfo.getProcessedObjects());
+                    entityInfo.getJoinEntityMeta(),
+                    entityInfo.getProcessedObjects());
 
             fillEntity(resultSet, joinEntityInfo);
             addEntityToCollectionOfMainEntity(entityInfo);
@@ -185,8 +185,8 @@ public class SelectEventListener {
 
         if (fetchType.equals(FetchType.EAGER)) {
             EntityInfo joinEntityInfo = new EntityInfo(entityInfo.getJoinEntity(),
-                                                       entityInfo.getJoinEntityMeta(),
-                                                       entityInfo.getProcessedObjects());
+                    entityInfo.getJoinEntityMeta(),
+                    entityInfo.getProcessedObjects());
 
             fillEntity(resultSet, joinEntityInfo);
             addEntityToMainEntity(entityInfo);
@@ -224,7 +224,7 @@ public class SelectEventListener {
         if (id != null && !Objects.equals(id, 0L)) {
             ///////**** Здесь вызывается геттер из оновной ентити ****\\\\\\\\\
             Object collection = ReflectionUtil.invokeGetter(entityInfo.getMainEntity(),
-                                                            entityInfo.getCurrentFieldMeta().getFieldName());
+                    entityInfo.getCurrentFieldMeta().getFieldName());
 
             Method collectionAddMethod = ReflectionUtil.getMethod(collection.getClass(), "add", Object.class);
             ReflectionUtil.invokeMethod(collection, collectionAddMethod, joinEntity);
@@ -244,9 +244,6 @@ public class SelectEventListener {
             ReflectionUtil.invokeSetter(entity, field.getFieldName(), joinEntity);
         }
     }
-
-
-
 
 
 }

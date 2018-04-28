@@ -40,5 +40,7 @@ public class InsertEvent {
         return entity;
     }
 
-
+    public Type getType() {
+        return type;
+    }
 }

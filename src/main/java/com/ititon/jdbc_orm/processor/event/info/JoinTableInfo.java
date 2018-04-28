@@ -2,11 +2,8 @@ package com.ititon.jdbc_orm.processor.event.info;
 
 public class JoinTableInfo {
     private String joinTableName;
-
     private Object mainEntity;
     private String mainEntityIdColumnName;
-
-
     private Object innerEntity;
     private String innerEntityIdColumnName;
 

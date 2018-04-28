@@ -6,6 +6,7 @@ import com.ititon.jdbc_orm.cache.MetaCache;
 import com.ititon.jdbc_orm.meta.EntityMeta;
 
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.List;
 
 public class CacheProcessor {
@@ -27,7 +28,7 @@ public class CacheProcessor {
 
     public /*<T extends BaseEntity> T*/ Object getEntity(final Class<? /*extends BaseEntity*/> entityClass, final Serializable id) {
 //        T baseEntity = entitiesCache.get(id, entityClass);
-       ;
+//       ;
         return entitiesCache.get(id, entityClass);
     }
 
@@ -45,7 +46,7 @@ public class CacheProcessor {
     }
 
 
-    public void putAll(final List<?/*? extends BaseEntity*/> entities) {
+    public void putAll(final Collection<?/*? extends BaseEntity*/> entities) {
         for (/*BaseEntity*/Object entity : entities) {
             entitiesCache.put(entity);
         }

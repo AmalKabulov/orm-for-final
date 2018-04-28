@@ -2,6 +2,7 @@ package com.ititon.jdbc_orm.processor.event.info;
 
 import com.ititon.jdbc_orm.meta.FieldMeta;
 import com.ititon.jdbc_orm.processor.action.InsertEventListener;
+import com.ititon.jdbc_orm.processor.event.InsertEvent;
 
 import java.sql.Connection;
 import java.util.List;
@@ -17,15 +18,19 @@ public class InsertEventInfo {
     private FieldMeta currentFieldMeta;
     private Connection connection;
 
+    private InsertEvent.Type type;
+
 
     public InsertEventInfo(Object entity,
                            List<JoinTableInfo> joinTablesInfo,
                            Set<Object> processedObjects,
-                           Connection connection) {
+                           Connection connection,
+                           InsertEvent.Type type) {
         this.entity = entity;
         this.joinTablesInfo = joinTablesInfo;
         this.processedObjects = processedObjects;
         this.connection = connection;
+        this.type = type;
     }
 
     public Object getEntity() {
@@ -75,6 +80,11 @@ public class InsertEventInfo {
 //        public void setColumnsValues(Map<String, String> columnsValues) {
 //            this.columnsValues = columnsValues;
 //        }
+
+
+    public InsertEvent.Type getType() {
+        return type;
+    }
 
     public FieldMeta getCurrentFieldMeta() {
         return currentFieldMeta;
