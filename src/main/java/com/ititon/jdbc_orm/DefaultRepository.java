@@ -177,12 +177,17 @@ public class DefaultRepository<E, ID extends Serializable> implements IDefaultRe
     @Override
     public E update(E entity) throws DefaultOrmException {
         String query = GenericQuery.updateQuery(entity);
-        try (Connection connection = connectionPool.getConnection();
-             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+        Connection connection = connectionPool.getConnection();
 
-            int updatedRows = preparedStatement.executeUpdate();
-            Assert.notZero(updatedRows, "updating entity: " + entity + " failed");
+        try (Connection c = connection) {
+//        try (Connection connection = connectionPool.getConnection();
+//             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+
+//            int updatedRows = preparedStatement.executeUpdate();
+//            Assert.notZero(updatedRows, "updating entity: " + entity + " failed");
 //            cacheProcessor.putEntity(entity);
+
+            insertEventListener.onInsert(new InsertEvent(InsertEvent.Type.UPDATE, connection, entity));
             return entity;
 
         } catch (SQLException e) {
