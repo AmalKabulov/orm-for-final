@@ -1,39 +1,61 @@
-package com.ititon.jdbc_orm.processor.action;
+package com.ititon.jdbc_orm.processor.listener;
 
 import com.ititon.jdbc_orm.ProcessedObject;
 import com.ititon.jdbc_orm.annotation.*;
 import com.ititon.jdbc_orm.meta.EntityMeta;
 import com.ititon.jdbc_orm.meta.FieldMeta;
 import com.ititon.jdbc_orm.processor.CacheProcessor;
-import com.ititon.jdbc_orm.processor.event.SelectEvent;
-import com.ititon.jdbc_orm.processor.event.info.EntityInfo;
+import com.ititon.jdbc_orm.processor.exception.DefaultOrmException;
+import com.ititon.jdbc_orm.processor.listener.event.SelectEvent;
+import com.ititon.jdbc_orm.processor.listener.info.EntityInfo;
+import com.ititon.jdbc_orm.processor.listener.query_builder.SelectQuery;
 import com.ititon.jdbc_orm.util.ReflectionUtil;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
 
-public class SelectEventListener {
+public class SelectEventListener implements EventListener<SelectEvent>{
     private CacheProcessor cacheProcessor = CacheProcessor.getInstance();
+
+    @Override
+    public void execute(SelectEvent event) throws SQLException, DefaultOrmException {
+        SelectEvent.Type type = event.getType();
+        Connection connection = event.getConnection();
+        Class<?> entityClass = event.getEntityClass();
+        EntityMeta entityMeta = cacheProcessor.getMeta(entityClass);
+        if (entityMeta == null) {
+            return;
+        }
+        String query = null;
+        if (type.equals(SelectEvent.Type.SELECT)) {
+            query = SelectQuery.buildSelectQuery(entityClass);
+        } else if (type.equals(SelectEvent.Type.SELECT_BY_ID)) {
+            query = SelectQuery.buildSelectByIdQuery(entityClass, event.getId());
+        } else if (type.equals(SelectEvent.Type.SELECT_WITH_LIMIT)) {
+            query = SelectQuery.buildSelectByLimitQuery(entityClass, event.getSkip(), event.getCount());
+        }
+
+        try (PreparedStatement preparedStatement = connection.prepareStatement(query)){
+            ResultSet resultSet = preparedStatement.executeQuery();
+            onSelect(entityMeta, resultSet);
+        }
+    }
 
     /**
      * method for correct parsing resultset
      * and adding result to entity cache
      *
-     * @param selectEvent
+     * @param entityMeta
+     * @param resultSet
      * @throws SQLException
      */
-    public void onSelect(final SelectEvent selectEvent) throws SQLException {
+    public void onSelect(final EntityMeta entityMeta, final ResultSet resultSet) throws SQLException {
         Object entity = null;
-        Class<?> entityClass = selectEvent.getEntityClass();
-        ResultSet resultSet = selectEvent.getResultSet();
-        EntityMeta entityMeta = cacheProcessor.getMeta(entityClass);
-        if (entityMeta == null) {
-            return;
-        }
-
 
         String tableName = entityMeta.getTableName();
         String idColumnName = tableName + "." + entityMeta.getIdColumnName();
@@ -79,6 +101,8 @@ public class SelectEventListener {
     }
 
 
+
+
     private void processFieldMeta(final ResultSet resultSet,
                                   final EntityInfo entityInfo) throws SQLException {
 
@@ -120,7 +144,11 @@ public class SelectEventListener {
         EntityMeta joinEntityMeta = cacheProcessor.getMeta(entityClass);
         Object joinEntity = ReflectionUtil.newInstance(joinEntityMeta.getEntityClassName());
 
-        entityInfo.getProcessedObjects().add(new ProcessedObject(mainEntity.getClass(), fieldMeta.getFieldName()));
+        String fieldName = fieldMeta.getFieldName();
+        ProcessedObject processedObject = new ProcessedObject(mainEntity.getClass(), fieldName);
+
+
+        entityInfo.getProcessedObjects().add(processedObject);
         entityInfo.setJoinEntityMeta(joinEntityMeta);
         entityInfo.setJoinEntity(joinEntity);
 

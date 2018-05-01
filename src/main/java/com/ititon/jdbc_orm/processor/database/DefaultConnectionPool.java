@@ -133,7 +133,7 @@ public class DefaultConnectionPool {
     public void freeConnection(Connection connection) throws DefaultOrmException {
         try {
             if (connection.isClosed()) {
-                throw new DefaultOrmException("ProxyConnection is already closed. This is incorrect action");
+                throw new DefaultOrmException("ProxyConnection is already closed. This is incorrect listener");
             }
 
             if (!connection.getAutoCommit()) {

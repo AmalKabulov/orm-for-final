@@ -1,4 +1,4 @@
-package com.ititon.jdbc_orm.processor.event.info;
+package com.ititon.jdbc_orm.processor.listener.info;
 
 public class JoinTableInfo {
     private String joinTableName;
@@ -22,6 +22,8 @@ public class JoinTableInfo {
 
     public JoinTableInfo() {
     }
+
+
 
 
     public String getJoinTableName() {

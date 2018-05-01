@@ -33,7 +33,9 @@ public class CacheProcessor {
     }
 
     public void putEntity(final /*BaseEntity*/Object entity) {
-        entitiesCache.put(entity);
+        if (entity != null) {
+            entitiesCache.put(entity);
+        }
     }
 
     public void deleteEntity(final Class<? /*extends BaseEntity*/> entityClass, final Serializable id) {
@@ -53,12 +55,9 @@ public class CacheProcessor {
     }
 
 
-
     public static CacheProcessor getInstance() {
         return INSTANCE;
     }
-
-
 
 
     //    /**

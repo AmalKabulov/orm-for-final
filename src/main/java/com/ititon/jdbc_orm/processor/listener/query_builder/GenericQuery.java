@@ -1,10 +1,9 @@
-package com.ititon.jdbc_orm.processor.query_builder;
+package com.ititon.jdbc_orm.processor.listener.query_builder;
 
 import com.ititon.jdbc_orm.annotation.Column;
 import com.ititon.jdbc_orm.annotation.Id;
 import com.ititon.jdbc_orm.annotation.Table;
 import com.ititon.jdbc_orm.meta.EntityMeta;
-import com.ititon.jdbc_orm.meta.FieldMeta;
 import com.ititon.jdbc_orm.processor.CacheProcessor;
 import com.ititon.jdbc_orm.processor.exception.DefaultOrmException;
 import com.ititon.jdbc_orm.util.Assert;
@@ -12,17 +11,14 @@ import com.ititon.jdbc_orm.util.ReflectionUtil;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
-import java.util.Collection;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public abstract class GenericQuery {
 
     private static final CacheProcessor CACHE_PROCESSOR = CacheProcessor.getInstance();
 
-    public static String buildCountQuery(final Class<? /*extends BaseEntity*/> clazz) throws DefaultOrmException {
+    public static String buildCountQuery(final Class<?> clazz) throws DefaultOrmException {
 
         EntityMeta entityMeta = CACHE_PROCESSOR.getMeta(clazz);
         Assert.notNull(entityMeta, "entity " + clazz + " not found");
@@ -36,14 +32,14 @@ public abstract class GenericQuery {
                 ";";
     }
 
-    public static String buildFindAllQuery(final Class<? /*extends BaseEntity*/> clazz) throws DefaultOrmException {
-        return SelectQuery.buildFindAllQuery(clazz);
+    public static String buildSelectQuery(final Class<? /*extends BaseEntity*/> clazz) throws DefaultOrmException {
+        return SelectQuery.buildSelectQuery(clazz);
 
     }
 
 
     public static String findByLimit(final Class<? /*extends BaseEntity*/> clazz, final int skip, final int count) throws DefaultOrmException {
-        String findAllQuery = buildFindAllQuery(clazz);
+        String findAllQuery = buildSelectQuery(clazz);
         StringBuilder limitQuery = new StringBuilder(findAllQuery);
         limitQuery.setLength(limitQuery.length() - 1);
 
@@ -56,8 +52,8 @@ public abstract class GenericQuery {
         EntityMeta entityMeta = CACHE_PROCESSOR.getMeta(clazz);
         Assert.notNull(entityMeta, "entity " + clazz + " not found");
 
-        String findAllQuery = buildFindAllQuery(clazz);
-        StringBuilder byIdQuery = new StringBuilder(findAllQuery);
+        String selectQuery = buildSelectQuery(clazz);
+        StringBuilder byIdQuery = new StringBuilder(selectQuery);
         byIdQuery.setLength(byIdQuery.length() - 1);
 
 
@@ -82,31 +78,6 @@ public abstract class GenericQuery {
                 ") values (" +
                 values + ")" +
                 ";";
-
-    }
-
-    public static String updateQuery(final Object entity) throws DefaultOrmException {
-
-        Class<?> entityClass = entity.getClass();
-        Map<String, String> columnsValues = getColumnsValues(entity);
-        String tableName = entityClass.getAnnotation(Table.class).name();
-        EntityMeta entityMeta = CACHE_PROCESSOR.getMeta(entityClass);
-        Assert.notNull(entityMeta, "Entity: " + entityClass + " not found");
-
-        String idColumnFieldName = entityMeta.getIdColumnFieldName();
-        String idColumnName = entityMeta.getIdColumnName();
-        Object id = ReflectionUtil.invokeGetter(entity, idColumnFieldName);
-
-        StringBuilder query = new StringBuilder("update ").append(tableName).append(" set ");
-        List<String> updateValues = columnsValues.entrySet()
-                .stream()
-                .map(cv -> cv.getKey() + " = " + cv.getValue())
-                .collect(Collectors.toList());
-
-        String values = String.join(", ", updateValues);
-
-
-        return query.append(values).append(" where ").append(idColumnName).append(" = ").append(id).append(";").toString();
 
     }
 
@@ -145,11 +116,6 @@ public abstract class GenericQuery {
     }
 
 
-    private static String getColumns(EntityMeta entityMeta) {
-        Collection<FieldMeta> values = entityMeta.getFieldMetas().values();
-        List<String> allColumns = values.stream().map(FieldMeta::getColumnName).collect(Collectors.toList());
-        return String.join(", ", allColumns);
-    }
 
 
     private static String wrap(String value) {

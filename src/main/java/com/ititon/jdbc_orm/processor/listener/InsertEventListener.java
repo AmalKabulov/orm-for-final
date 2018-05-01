@@ -1,30 +1,37 @@
-package com.ititon.jdbc_orm.processor.action;
+package com.ititon.jdbc_orm.processor.listener;
 
 import com.ititon.jdbc_orm.annotation.*;
 import com.ititon.jdbc_orm.meta.EntityMeta;
 import com.ititon.jdbc_orm.meta.FieldMeta;
 import com.ititon.jdbc_orm.processor.CacheProcessor;
-import com.ititon.jdbc_orm.processor.event.InsertEvent;
-import com.ititon.jdbc_orm.processor.event.info.InsertEventInfo;
-import com.ititon.jdbc_orm.processor.event.info.JoinTableInfo;
-import com.ititon.jdbc_orm.processor.event.info.TableInfo;
 import com.ititon.jdbc_orm.processor.exception.DefaultOrmException;
+import com.ititon.jdbc_orm.processor.listener.event.InsertEvent;
+import com.ititon.jdbc_orm.processor.listener.info.InsertEventInfo;
+import com.ititon.jdbc_orm.processor.listener.info.JoinTableInfo;
+import com.ititon.jdbc_orm.processor.listener.info.TableInfo;
+import com.ititon.jdbc_orm.processor.listener.query_builder.InsertQuery;
+import com.ititon.jdbc_orm.processor.listener.query_builder.UpdateQuery;
 import com.ititon.jdbc_orm.util.ReflectionUtil;
 
 import java.lang.annotation.Annotation;
 import java.sql.*;
 import java.util.*;
 
-public class InsertEventListener {
+public class InsertEventListener implements EventListener<InsertEvent>{
 
     private final CacheProcessor cacheProcessor = CacheProcessor.getInstance();
 
-    public void onInsert(final InsertEvent event) throws SQLException, DefaultOrmException {
+
+    @Override
+    public void execute(InsertEvent event) throws SQLException, DefaultOrmException{
         Object entity = event.getEntity();
         Set<Object> processedObjects = new HashSet<>();
         InsertEvent.Type type = event.getType();
         List<JoinTableInfo> joinTablesInfo = new ArrayList<>();
-        InsertEventInfo insertEventInfo = new InsertEventInfo(entity, joinTablesInfo, processedObjects, event.getConnection(), type);
+        InsertEventInfo insertEventInfo = new InsertEventInfo(entity,
+                                                              joinTablesInfo,
+                                                              processedObjects,
+                                                              event.getConnection(), type);
         try {
             onInsert(insertEventInfo);
             generateAndExecuteJoinTableQueries(insertEventInfo);
@@ -39,75 +46,6 @@ public class InsertEventListener {
     }
 
 
-    private void generateAndExecuteJoinTableQueries(final InsertEventInfo info) throws SQLException {
-        List<JoinTableInfo> joinTablesInfo = info.getJoinTablesInfo();
-        Connection connection = info.getConnection();
-        InsertEvent.Type type = info.getType();
-
-        for (JoinTableInfo joinTableInfo : joinTablesInfo) {
-            TableInfo tableInfo = createTableInfoFrom(joinTableInfo);
-            String query = null;
-            if (type.equals(InsertEvent.Type.INSERT)) {
-                query = generateInsertQuery(tableInfo.getTableName(), tableInfo.getColumnsValues());
-            } else if (type.equals(InsertEvent.Type.UPDATE)) {
-                query = generateUpdateQuery(tableInfo);
-            }
-            try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-                preparedStatement.executeUpdate();
-            }
-
-            System.out.println(query);
-        }
-    }
-
-    private TableInfo createTableInfoFrom(final JoinTableInfo joinTableInfo) {
-        Map<String, String> columnsValues = new LinkedHashMap<>();
-
-        String joinTableName = joinTableInfo.getJoinTableName();
-        Object mainEntity = joinTableInfo.getMainEntity();
-        Object innerEntity = joinTableInfo.getInnerEntity();
-
-        EntityMeta mainMeta = cacheProcessor.getMeta(mainEntity.getClass());
-        EntityMeta innerMeta = cacheProcessor.getMeta(innerEntity.getClass());
-
-        Object mainId = ReflectionUtil.invokeGetter(mainEntity, mainMeta.getIdColumnFieldName());
-        Object innerId = ReflectionUtil.invokeGetter(innerEntity, innerMeta.getIdColumnFieldName());
-
-        String mainEntityIdColumnName = joinTableInfo.getMainEntityIdColumnName();
-        String innerEntityIdColumnName = joinTableInfo.getInnerEntityIdColumnName();
-
-        columnsValues.put(mainEntityIdColumnName, String.valueOf((Object) mainId));
-        columnsValues.put(innerEntityIdColumnName, String.valueOf((Object) innerId));
-        return new TableInfo(joinTableName, columnsValues, true);
-    }
-
-    private String generateInsertQuery(final String tableName, final Map<String, String> columnsValues) {
-
-        String columns = String.join(", ", columnsValues.keySet());
-        String values = String.join(", ", columnsValues.values());
-        return "insert into " + tableName + "(" + columns + ") values (" + values + ")";
-
-    }
-
-    private String generateUpdateQuery(final TableInfo tableInfo) {
-        StringBuilder query = new StringBuilder("update ").append(tableInfo.getTableName()).append(" set ");
-        StringBuilder columnsValuesLikeString = new StringBuilder();
-        tableInfo.getColumnsValues().forEach((k, v) -> columnsValuesLikeString.append(k)
-                                                                             .append(" = ")
-                                                                             .append(v)
-                                                                             .append(", "));
-//        columnsValuesLikeString.setLength(query.length() - 2);
-        query.append(columnsValuesLikeString);
-        if (tableInfo.isJoinTable()) {
-            query.append(" where ").append(columnsValuesLikeString);
-        } else {
-            query.append(" where ").append(tableInfo.getIdColumnName()).append(" = ").append(tableInfo.getIdValue());
-        }
-
-        return query.append(";").toString();
-    }
-
-
     private void onInsert(final InsertEventInfo info) throws SQLException {
 
         Object entity = info.getEntity();
@@ -119,6 +57,36 @@ public class InsertEventListener {
         handleFieldsMeta(info, columnsValues);
         generateAndInvokeInsertQuery(info, columnsValues);
     }
+
+
+    private void generateAndExecuteJoinTableQueries(final InsertEventInfo info) throws SQLException {
+        List<JoinTableInfo> joinTablesInfo = info.getJoinTablesInfo();
+        Connection connection = info.getConnection();
+        InsertEvent.Type type = info.getType();
+
+        for (JoinTableInfo joinTableInfo : joinTablesInfo) {
+            TableInfo tableInfo = createTableInfoFrom(joinTableInfo);
+            String query = null;
+            if (type.equals(InsertEvent.Type.SAVE)) {
+
+                query = InsertQuery.buildInsertQuery(tableInfo);
+            } else if (type.equals(InsertEvent.Type.UPDATE)) {
+                query = UpdateQuery.buildUpdateQuery(tableInfo);
+            }
+            try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+                preparedStatement.executeUpdate();
+            }
+
+            System.out.println(query);
+        }
+    }
+
+
+
+
+
+
+
 
 
     private void handleFieldsMeta(final InsertEventInfo info, final Map<String, String> columnsValues) throws SQLException {
@@ -157,15 +125,15 @@ public class InsertEventListener {
         Object entityId = ReflectionUtil.invokeGetter(entity, entityMeta.getIdColumnFieldName());
 
         String query = null;
-        if (entityId == null && type.equals(InsertEvent.Type.INSERT)) {
-            query = generateInsertQuery(entityMeta.getTableName(), columnsValues);
-            System.out.println("INSERT QUERY: " + query);
+        if (entityId == null && type.equals(InsertEvent.Type.SAVE)) {
+            query = InsertQuery.buildInsertQuery(createTableInfoFrom(entityMeta.getTableName(), columnsValues));
+            System.out.println("SAVE QUERY: " + query);
 
         } else if (entityId != null && type.equals(InsertEvent.Type.UPDATE)) {
             TableInfo tableInfo = new TableInfo(entityMeta.getTableName(),
                                                 entityMeta.getIdColumnName(),
                                                 entityId, columnsValues, false);
-            query = generateUpdateQuery(tableInfo);
+            query = UpdateQuery.buildUpdateQuery(tableInfo);
             System.out.println("UPDATE QUERY: " + query);
         }
 
@@ -380,6 +348,32 @@ public class InsertEventListener {
     private String wrap(String value) {
         return "\'" + value + "\'";
     }
+
+    private TableInfo createTableInfoFrom(final JoinTableInfo joinTableInfo) {
+        Map<String, String> columnsValues = new LinkedHashMap<>();
+
+        String joinTableName = joinTableInfo.getJoinTableName();
+        Object mainEntity = joinTableInfo.getMainEntity();
+        Object innerEntity = joinTableInfo.getInnerEntity();
+
+        EntityMeta mainMeta = cacheProcessor.getMeta(mainEntity.getClass());
+        EntityMeta innerMeta = cacheProcessor.getMeta(innerEntity.getClass());
+
+        Object mainId = ReflectionUtil.invokeGetter(mainEntity, mainMeta.getIdColumnFieldName());
+        Object innerId = ReflectionUtil.invokeGetter(innerEntity, innerMeta.getIdColumnFieldName());
+
+        String mainEntityIdColumnName = joinTableInfo.getMainEntityIdColumnName();
+        String innerEntityIdColumnName = joinTableInfo.getInnerEntityIdColumnName();
+
+        columnsValues.put(mainEntityIdColumnName, String.valueOf((Object) mainId));
+        columnsValues.put(innerEntityIdColumnName, String.valueOf((Object) innerId));
+        return new TableInfo(joinTableName, columnsValues, true);
+    }
+
+    private TableInfo createTableInfoFrom(final String tableName, final Map<String, String> columnsValues) {
+        return new TableInfo(tableName, columnsValues, true);
+    }
+
 
 
 }

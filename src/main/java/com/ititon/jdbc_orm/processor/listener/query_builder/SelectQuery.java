@@ -1,6 +1,5 @@
-package com.ititon.jdbc_orm.processor.query_builder;
+package com.ititon.jdbc_orm.processor.listener.query_builder;
 
-import com.ititon.jdbc_orm.ProcessedObject;
 import com.ititon.jdbc_orm.annotation.*;
 import com.ititon.jdbc_orm.meta.EntityMeta;
 import com.ititon.jdbc_orm.meta.FieldMeta;
@@ -16,6 +15,64 @@ public abstract class SelectQuery {
     private static final CacheProcessor CACHE_PROCESSOR = CacheProcessor.getInstance();
 
     /**
+     * Method for build find by limit query,
+     * with many to many, many to one,
+     * one to many and one to one associations.
+     * @param entityClass
+     * @param skip
+     * @param count
+     * @return string query
+     */
+    public static String buildSelectByLimitQuery(final Class<?> entityClass,
+                                                 final int skip, final int count) throws DefaultOrmException {
+        String findAllQuery = buildSelectQuery(entityClass);
+        StringBuilder limitQuery = new StringBuilder(findAllQuery);
+        limitQuery.setLength(limitQuery.length() - 1);
+
+        return limitQuery.append(" limit ").append(skip).append(", ").append(count).append(";").toString();
+    }
+
+    /**
+     * Method for build find by id query,
+     * with many to many, many to one,
+     * one to many and one to one associations.
+     *
+     * @param entityClass
+     * @param id
+     * @return string query
+     */
+    public static String buildSelectByIdQuery(final Class<?> entityClass, Object id) throws DefaultOrmException {
+        String selectQuery = buildSelectQuery(entityClass);
+        EntityMeta entityMeta = CACHE_PROCESSOR.getMeta(entityClass);
+        StringBuilder byIdQuery = new StringBuilder(selectQuery);
+        byIdQuery.setLength(byIdQuery.length() - 1);
+
+        return byIdQuery.append(" where ")
+                .append(entityMeta.getTableName()).append(".").append(entityMeta.getIdColumnName())
+                .append(" = ")
+                .append(id).append(";").toString();
+    }
+
+
+    /**
+     * Method for build query for find row counts in database
+     *
+     * @param clazz
+     * @return string query
+     */
+    public static String buildSelectRowCountQuery(final Class<?> clazz) {
+        EntityMeta entityMeta = CACHE_PROCESSOR.getMeta(clazz);
+        String idColumnName = entityMeta.getIdColumnName();
+        String tableName = entityMeta.getTableName();
+
+        return "select count(" +
+                tableName + "." + idColumnName +
+                ") from " +
+                tableName +
+                ";";
+    }
+
+    /**
      * Method for build find all query,
      * with many to many, many to one,
      * one to many and one to one associations.
@@ -23,7 +80,7 @@ public abstract class SelectQuery {
      * @param entityClass
      * @return string query
      */
-    public static String buildFindAllQuery(final Class<?> entityClass) throws DefaultOrmException {
+    public static String buildSelectQuery(final Class<?> entityClass) throws DefaultOrmException {
         EntityMeta entityMeta = CACHE_PROCESSOR.getMeta(entityClass);
         Assert.notNull(entityMeta, "entity " + entityClass + " not found");
         Set<String> processedMetas = new HashSet<>();
@@ -203,6 +260,7 @@ public abstract class SelectQuery {
                                                  final Set<String> processedMetas) throws DefaultOrmException {
 
         EntityMeta innerEntityMeta = getEntityMetaByFieldMeta(fieldMeta);
+        System.out.println(innerEntityMeta);
         if (processedMetas.contains(innerEntityMeta.getEntityClassName())) {
             return null;
         }

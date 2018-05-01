@@ -1,4 +1,4 @@
-package com.ititon.jdbc_orm.processor.event.info;
+package com.ititon.jdbc_orm.processor.listener.info;
 
 import com.ititon.jdbc_orm.ProcessedObject;
 import com.ititon.jdbc_orm.meta.EntityMeta;
