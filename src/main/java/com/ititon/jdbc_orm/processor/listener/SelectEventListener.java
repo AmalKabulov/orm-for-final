@@ -1,6 +1,5 @@
 package com.ititon.jdbc_orm.processor.listener;
 
-import com.ititon.jdbc_orm.ProcessedObject;
 import com.ititon.jdbc_orm.annotation.*;
 import com.ititon.jdbc_orm.meta.EntityMeta;
 import com.ititon.jdbc_orm.meta.FieldMeta;
@@ -19,9 +18,32 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
 
+
+/** SelectEvenListener - этот класс слушает event.
+ * Обращается к SelectQuery который герерирует запрос.
+ * Также взависимости от event`а он генерируется подходящий запрос,
+ * например select by id, select with limit - ограниченный селектб к примеру
+ * чтоб достать 10 значений из базы(Select `columns` from `tablename` limit `from`, `count`)
+ * и обычный селект.
+ *
+ */
 public class SelectEventListener implements EventListener<SelectEvent> {
+
+    /**
+     * Кеш прооцессор который может работать с метаданными;
+     */
     private CacheProcessor cacheProcessor = CacheProcessor.getInstance();
 
+    /**
+     * Метод для обработки event`а. В нем же генерируются подходящие запросы,
+     * берется коннекш из пула, создается preparedstatement c сгенерированным
+     * ранее запросом и выполныется.
+     * Также метод распарсивает полученный resultset, создает и заполняет его данными из
+     * resultset`а
+     * @param event
+     * @throws SQLException
+     * @throws DefaultOrmException
+     */
     @Override
     public void execute(SelectEvent event) throws SQLException, DefaultOrmException {
         SelectEvent.Type type = event.getType();
