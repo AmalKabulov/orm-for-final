@@ -4,6 +4,9 @@ import com.ititon.jdbc_orm.ProcessedObject;
 import com.ititon.jdbc_orm.meta.EntityMeta;
 import com.ititon.jdbc_orm.meta.FieldMeta;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 public class EntityInfo {
@@ -14,6 +17,7 @@ public class EntityInfo {
     private EntityMeta joinEntityMeta;
     private FieldMeta currentFieldMeta;
     private Set<ProcessedObject> processedObjects;
+    private Map<String, HashSet<String>> processedObjectFields;
 
 
     public EntityInfo(Object mainEntity, EntityMeta mainEntityMeta, Object joinEntity, EntityMeta joinEntityMeta, FieldMeta currentFieldMeta, Set<ProcessedObject> processedObjects) {
@@ -25,10 +29,10 @@ public class EntityInfo {
         this.processedObjects = processedObjects;
     }
 
-    public EntityInfo(Object mainEntity, EntityMeta mainEntityMeta, Set<ProcessedObject> processedObjects) {
+    public EntityInfo(Object mainEntity, EntityMeta mainEntityMeta, Map<String, HashSet<String>> processedObjectFields) {
         this.mainEntity = mainEntity;
         this.mainEntityMeta = mainEntityMeta;
-        this.processedObjects = processedObjects;
+        this.processedObjectFields = processedObjectFields;
     }
 
     public EntityInfo() {
@@ -74,11 +78,19 @@ public class EntityInfo {
         this.currentFieldMeta = currentFieldMeta;
     }
 
-    public Set<ProcessedObject> getProcessedObjects() {
-        return processedObjects;
+//    public Set<ProcessedObject> getProcessedObjects() {
+//        return processedObjects;
+//    }
+
+    public Map<String, HashSet<String>> getProcessedObjectFields() {
+        return processedObjectFields;
     }
 
-    public void setProcessedObjects(Set<ProcessedObject> processedObjects) {
-        this.processedObjects = processedObjects;
+    public void setProcessedObjectFields(Map<String, HashSet<String>> processedObjectFields) {
+        this.processedObjectFields = processedObjectFields;
     }
+
+//    public void setProcessedObjects(Set<ProcessedObject> processedObjects) {
+//        this.processedObjects = processedObjects;
+//    }
 }

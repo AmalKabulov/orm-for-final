@@ -19,7 +19,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
 
-public class SelectEventListener implements EventListener<SelectEvent>{
+public class SelectEventListener implements EventListener<SelectEvent> {
     private CacheProcessor cacheProcessor = CacheProcessor.getInstance();
 
     @Override
@@ -40,7 +40,8 @@ public class SelectEventListener implements EventListener<SelectEvent>{
             query = SelectQuery.buildSelectByLimitQuery(entityClass, event.getSkip(), event.getCount());
         }
 
-        try (PreparedStatement preparedStatement = connection.prepareStatement(query)){
+        System.out.println("SELECT QUERY IS: " + query);
+        try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             ResultSet resultSet = preparedStatement.executeQuery();
             onSelect(entityMeta, resultSet);
         }
@@ -64,14 +65,15 @@ public class SelectEventListener implements EventListener<SelectEvent>{
 
 
         while (resultSet.next()) {
-
-            Set<ProcessedObject> processedObjects = new HashSet<>();
+            Map<String, HashSet<String>> processedObjectFields = new HashMap<>();
+//            Set<ProcessedObject> processedObjects = new HashSet<>();
+//            Set<ProcessedObject> processedObjects = new HashSet<>();
             Object id = resultSet.getObject(idColumnName, idColumnType);
             if (entity == null || !ReflectionUtil.invokeGetter(entity, idColumnFieldName).equals(id)) {
                 entity = ReflectionUtil.newInstance(entityMeta.getEntityClassName());
             }
 
-            EntityInfo entityInfo = new EntityInfo(entity, entityMeta, processedObjects);
+            EntityInfo entityInfo = new EntityInfo(entity, entityMeta, processedObjectFields);
             fillEntity(resultSet, entityInfo);
 
             cacheProcessor.putEntity(entity);
@@ -99,8 +101,6 @@ public class SelectEventListener implements EventListener<SelectEvent>{
         }
 
     }
-
-
 
 
     private void processFieldMeta(final ResultSet resultSet,
@@ -133,22 +133,29 @@ public class SelectEventListener implements EventListener<SelectEvent>{
     private void processComplex(final ResultSet resultSet,
                                 final EntityInfo entityInfo) throws SQLException {
 
-        FieldMeta fieldMeta = entityInfo.getCurrentFieldMeta();
 
+
+//        String fieldName = fieldMeta.getFieldName();
+        if (isObjectProcessed(entityInfo)) {
+            return;
+        }
+
+        if (!isFieldProcessed(entityInfo)) {
+            deleteProcessedObject(entityInfo);
+        }
+
+        addToProcessedObjects(entityInfo);
+//        ProcessedObject processedObject = new ProcessedObject(mainEntity.getClass(), fieldName);
+//        entityInfo.getProcessedObjects().add(processedObject);
+
+        FieldMeta fieldMeta = entityInfo.getCurrentFieldMeta();
         Class<?> entityClass = fieldMeta.getFieldGenericType();
         if (entityClass == null) {
             entityClass = fieldMeta.getFieldType();
         }
 
-        Object mainEntity = entityInfo.getMainEntity();
         EntityMeta joinEntityMeta = cacheProcessor.getMeta(entityClass);
         Object joinEntity = ReflectionUtil.newInstance(joinEntityMeta.getEntityClassName());
-
-        String fieldName = fieldMeta.getFieldName();
-        ProcessedObject processedObject = new ProcessedObject(mainEntity.getClass(), fieldName);
-
-
-        entityInfo.getProcessedObjects().add(processedObject);
         entityInfo.setJoinEntityMeta(joinEntityMeta);
         entityInfo.setJoinEntity(joinEntity);
 
@@ -176,14 +183,12 @@ public class SelectEventListener implements EventListener<SelectEvent>{
 
             EntityInfo joinEntityInfo = new EntityInfo(entityInfo.getJoinEntity(),
                     entityInfo.getJoinEntityMeta(),
-                    entityInfo.getProcessedObjects());
+                    entityInfo.getProcessedObjectFields());
 
             fillEntity(resultSet, joinEntityInfo);
             addEntityToCollectionOfMainEntity(entityInfo);
         }
     }
-
-
 
 
     private void handleManyToMany(final ResultSet resultSet,
@@ -196,7 +201,7 @@ public class SelectEventListener implements EventListener<SelectEvent>{
 
             EntityInfo joinEntityInfo = new EntityInfo(entityInfo.getJoinEntity(),
                     entityInfo.getJoinEntityMeta(),
-                    entityInfo.getProcessedObjects());
+                    entityInfo.getProcessedObjectFields());
 
             fillEntity(resultSet, joinEntityInfo);
             addEntityToCollectionOfMainEntity(entityInfo);
@@ -214,7 +219,7 @@ public class SelectEventListener implements EventListener<SelectEvent>{
         if (fetchType.equals(FetchType.EAGER)) {
             EntityInfo joinEntityInfo = new EntityInfo(entityInfo.getJoinEntity(),
                     entityInfo.getJoinEntityMeta(),
-                    entityInfo.getProcessedObjects());
+                    entityInfo.getProcessedObjectFields());
 
             fillEntity(resultSet, joinEntityInfo);
             addEntityToMainEntity(entityInfo);
@@ -234,7 +239,7 @@ public class SelectEventListener implements EventListener<SelectEvent>{
         if (fetchType.equals(FetchType.EAGER)) {
             EntityInfo joinEntityInfo = new EntityInfo(entityInfo.getJoinEntity(),
                     entityInfo.getJoinEntityMeta(),
-                    entityInfo.getProcessedObjects());
+                    entityInfo.getProcessedObjectFields());
 
             fillEntity(resultSet, joinEntityInfo);
             addEntityToMainEntity(entityInfo);
@@ -274,4 +279,47 @@ public class SelectEventListener implements EventListener<SelectEvent>{
     }
 
 
+    private boolean isObjectProcessed(final EntityInfo entityInfo) {
+        Object entity = entityInfo.getMainEntity();
+        String entityName = entity.getClass().getName();
+        Map<String, HashSet<String>> processedObjectFields = entityInfo.getProcessedObjectFields();
+        return processedObjectFields.containsKey(entityName);
+    }
+
+    private void addToProcessedObjects(final EntityInfo entityInfo) {
+        FieldMeta fieldMeta = entityInfo.getCurrentFieldMeta();
+        Object entity = entityInfo.getMainEntity();
+        String entityName = entity.getClass().getName();
+        String fieldName = fieldMeta.getFieldName();
+        Map<String, HashSet<String>> processedObjectFields = entityInfo.getProcessedObjectFields();
+
+        if (isObjectProcessed(entityInfo)) {
+            processedObjectFields.keySet().add(fieldName);
+        } else {
+            HashSet<String> fields = new HashSet<>();
+            fields.add(fieldName);
+            processedObjectFields.put(entityName, fields);
+        }
+
+    }
+
+    private boolean isFieldProcessed(final EntityInfo entityInfo) {
+        FieldMeta fieldMeta = entityInfo.getCurrentFieldMeta();
+        Object entity = entityInfo.getMainEntity();
+        String entityName = entity.getClass().getName();
+        String fieldName = fieldMeta.getFieldName();
+        Map<String, HashSet<String>> processedObjectFields = entityInfo.getProcessedObjectFields();
+
+        if (isObjectProcessed(entityInfo)) {
+            return processedObjectFields.get(entityName).contains(fieldName);
+        }
+        return false;
+    }
+
+    private void deleteProcessedObject(final EntityInfo entityInfo) {
+        Object entity = entityInfo.getMainEntity();
+        String entityName = entity.getClass().getName();
+
+        entityInfo.getProcessedObjectFields().remove(entityName);
+    }
 }

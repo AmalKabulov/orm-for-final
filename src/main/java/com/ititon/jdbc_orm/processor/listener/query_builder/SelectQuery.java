@@ -6,6 +6,7 @@ import com.ititon.jdbc_orm.meta.FieldMeta;
 import com.ititon.jdbc_orm.processor.CacheProcessor;
 import com.ititon.jdbc_orm.processor.exception.DefaultOrmException;
 import com.ititon.jdbc_orm.util.Assert;
+import com.ititon.jdbc_orm.util.ReflectionUtil;
 
 import java.lang.annotation.Annotation;
 import java.util.*;
@@ -46,6 +47,10 @@ public abstract class SelectQuery {
         EntityMeta entityMeta = CACHE_PROCESSOR.getMeta(entityClass);
         StringBuilder byIdQuery = new StringBuilder(selectQuery);
         byIdQuery.setLength(byIdQuery.length() - 1);
+        EntityMeta innerEntity = CACHE_PROCESSOR.getMeta(id.getClass());
+        if (innerEntity != null) {
+            id = ReflectionUtil.invokeGetter(id, innerEntity.getIdColumnFieldName());
+        }
 
         return byIdQuery.append(" where ")
                 .append(entityMeta.getTableName()).append(".").append(entityMeta.getIdColumnName())

@@ -17,21 +17,22 @@ import java.lang.annotation.Annotation;
 import java.sql.*;
 import java.util.*;
 
-public class InsertEventListener implements EventListener<InsertEvent>{
+public class InsertEventListener implements EventListener<InsertEvent> {
 
     private final CacheProcessor cacheProcessor = CacheProcessor.getInstance();
 
 
     @Override
-    public void execute(InsertEvent event) throws SQLException, DefaultOrmException{
+    public void execute(InsertEvent event) throws SQLException, DefaultOrmException {
         Object entity = event.getEntity();
+        System.out.println("EXECUTE : " + entity);
         Set<Object> processedObjects = new HashSet<>();
         InsertEvent.Type type = event.getType();
         List<JoinTableInfo> joinTablesInfo = new ArrayList<>();
         InsertEventInfo insertEventInfo = new InsertEventInfo(entity,
-                                                              joinTablesInfo,
-                                                              processedObjects,
-                                                              event.getConnection(), type);
+                joinTablesInfo,
+                processedObjects,
+                event.getConnection(), type);
         try {
             onInsert(insertEventInfo);
             generateAndExecuteJoinTableQueries(insertEventInfo);
@@ -49,8 +50,9 @@ public class InsertEventListener implements EventListener<InsertEvent>{
     private void onInsert(final InsertEventInfo info) throws SQLException {
 
         Object entity = info.getEntity();
+        System.out.println("ON INSERT : " + entity);
         Map<String, String> columnsValues = new LinkedHashMap<>();
-        if (info.getProcessedObjects().contains(entity)) {
+        if (entity == null || info.getProcessedObjects().contains(entity)) {
             return;
         }
         info.getProcessedObjects().add(entity);
@@ -82,26 +84,24 @@ public class InsertEventListener implements EventListener<InsertEvent>{
     }
 
 
-
-
-
-
-
-
-
     private void handleFieldsMeta(final InsertEventInfo info, final Map<String, String> columnsValues) throws SQLException {
         Object entity = info.getEntity();
+
         EntityMeta entityMeta = cacheProcessor.getMeta(entity.getClass());
         Collection<FieldMeta> fieldMetas = entityMeta.getFieldMetas().values();
 
         for (FieldMeta fieldMeta : fieldMetas) {
             Map<Class<? extends Annotation>, Annotation> annotations = fieldMeta.getAnnotations();
             Object result = ReflectionUtil.invokeGetter(entity, fieldMeta.getFieldName());
-
             info.setCurrentFieldMeta(fieldMeta);
             info.setGetterResult(result);
 
-            if (!annotations.containsKey(Id.class) && annotations.containsKey(Column.class)) {
+            if (annotations.containsKey(JoinColumn.class)) {
+                JoinColumn column = (JoinColumn)annotations.get(JoinColumn.class);
+                EntityMeta includeMeta = cacheProcessor.getMeta(result.getClass());
+                Object columnResult = ReflectionUtil.invokeGetter(result, includeMeta.getIdColumnFieldName());
+                columnsValues.put(column.name(), wrap(String.valueOf((Object) columnResult)));
+            } else if (!annotations.containsKey(Id.class) && annotations.containsKey(Column.class)) {
                 columnsValues.put(fieldMeta.getColumnName(), wrap(String.valueOf((Object) result)));
             } else if (annotations.containsKey(ManyToMany.class)) {
                 handleFieldWithManyToManyAnnotation(info);
@@ -129,18 +129,23 @@ public class InsertEventListener implements EventListener<InsertEvent>{
             query = InsertQuery.buildInsertQuery(createTableInfoFrom(entityMeta.getTableName(), columnsValues));
             System.out.println("SAVE QUERY: " + query);
 
-        } else if (entityId != null && type.equals(InsertEvent.Type.UPDATE)) {
-            TableInfo tableInfo = new TableInfo(entityMeta.getTableName(),
-                                                entityMeta.getIdColumnName(),
-                                                entityId, columnsValues, false);
-            query = UpdateQuery.buildUpdateQuery(tableInfo);
-            System.out.println("UPDATE QUERY: " + query);
+        } else if (entityId != null) {
+            if (type.equals(InsertEvent.Type.SAVE) && cacheProcessor.getMeta(entityId.getClass()) != null) {
+                query = InsertQuery.buildInsertQuery(createTableInfoFrom(entityMeta.getTableName(), columnsValues));
+                System.out.println("SAVE QUERY: " + query);
+            } else {
+                TableInfo tableInfo = new TableInfo(entityMeta.getTableName(),
+                        entityMeta.getIdColumnName(),
+                        entityId, columnsValues, false);
+                query = UpdateQuery.buildUpdateQuery(tableInfo);
+                System.out.println("UPDATE QUERY: " + query);
+            }
         }
 
 
         Connection connection = info.getConnection();
         try (PreparedStatement preparedStatement =
-                        connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
+                     connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
             preparedStatement.executeUpdate();
             ResultSet resultSet = preparedStatement.getGeneratedKeys();
             while (resultSet.next()) {
@@ -207,6 +212,15 @@ public class InsertEventListener implements EventListener<InsertEvent>{
 
     private void handleFieldWithOneToManyAssociation(final InsertEventInfo info) throws SQLException {
 
+        Collection collectionOfJoinEntities = null;
+        Object getterResult1 = info.getGetterResult();
+        if (getterResult1 instanceof Collection) {
+            collectionOfJoinEntities = (Collection) getterResult1;
+        }
+
+        if (collectionOfJoinEntities == null || !collectionOfJoinEntities.isEmpty()) {
+            return;
+        }
 
         FieldMeta fieldMeta1 = info.getCurrentFieldMeta();
         OneToMany oneToMany = (OneToMany) fieldMeta1.getAnnotations().get(OneToMany.class);
@@ -217,22 +231,16 @@ public class InsertEventListener implements EventListener<InsertEvent>{
             return;
         }
 
-        Collection collectionOfJoinEntities = null;
-        Object getterResult1 = info.getGetterResult();
-        if (getterResult1 instanceof Collection) {
-            collectionOfJoinEntities = (Collection) getterResult1;
+
+        for (Object entity : collectionOfJoinEntities) {
+            InsertEventInfo insertEventInfo =
+                    new InsertEventInfo(entity,
+                            info.getJoinTablesInfo(),
+                            info.getProcessedObjects(),
+                            info.getConnection(), info.getType());
+            onInsert(insertEventInfo);
         }
 
-        if (collectionOfJoinEntities != null && !collectionOfJoinEntities.isEmpty()) {
-            for (Object entity : collectionOfJoinEntities) {
-                InsertEventInfo insertEventInfo =
-                        new InsertEventInfo(entity,
-                                info.getJoinTablesInfo(),
-                                info.getProcessedObjects(),
-                                info.getConnection(), info.getType());
-                onInsert(insertEventInfo);
-            }
-        }
 
     }
 
@@ -255,9 +263,18 @@ public class InsertEventListener implements EventListener<InsertEvent>{
 
     private void handleFieldWithManyToManyAnnotation(final InsertEventInfo info) throws SQLException {
 
+        Collection collectionOfJoinEntities = null;
+        Object getterResult1 = info.getGetterResult();
+        if (getterResult1 instanceof Collection) {
+            collectionOfJoinEntities = (Collection) getterResult1;
+        }
 
-        FieldMeta fieldMeta1 = info.getCurrentFieldMeta();
-        Map<Class<? extends Annotation>, Annotation> annotations = fieldMeta1.getAnnotations();
+        if (collectionOfJoinEntities == null || collectionOfJoinEntities.isEmpty()) {
+            return;
+        }
+
+        FieldMeta fieldMeta = info.getCurrentFieldMeta();
+        Map<Class<? extends Annotation>, Annotation> annotations = fieldMeta.getAnnotations();
         ManyToMany manyToMany = (ManyToMany) annotations.get(ManyToMany.class);
         String mappedFieldName = manyToMany.mappedBy();
         CascadeType[] cascade = manyToMany.cascade();
@@ -271,7 +288,7 @@ public class InsertEventListener implements EventListener<InsertEvent>{
         /** можно вынести в отдельный метод*/
         //TODO
 
-        Class<?> fieldGenericType = fieldMeta1.getFieldGenericType();
+        Class<?> fieldGenericType = fieldMeta.getFieldGenericType();
         EntityMeta joinEntityMeta = cacheProcessor.getMeta(fieldGenericType);
 
         JoinTable joinTable = null;
@@ -288,24 +305,20 @@ public class InsertEventListener implements EventListener<InsertEvent>{
         }
 
 
-        Collection collectionOfJoinEntities = null;
-        Object getterResult1 = info.getGetterResult();
-        if (getterResult1 instanceof Collection) {
-            collectionOfJoinEntities = (Collection) getterResult1;
+        for (Object innerEntity : collectionOfJoinEntities) {
+            JoinTableInfo joinTableInfo = createJoinTableInfo(info.getEntity(), innerEntity, joinTable, reverse);
+            List<JoinTableInfo> joinTablesInfo = info.getJoinTablesInfo();
+            joinTablesInfo.add(joinTableInfo);
+
+            System.out.println("INNER ENTITY: " + innerEntity.getClass());
+
+            InsertEventInfo newInfo = new InsertEventInfo(innerEntity,
+                    joinTablesInfo,
+                    info.getProcessedObjects(),
+                    info.getConnection(), info.getType());
+            onInsert(newInfo);
         }
 
-        if (collectionOfJoinEntities != null && !collectionOfJoinEntities.isEmpty()) {
-            for (Object innerEntity : collectionOfJoinEntities) {
-                JoinTableInfo joinTableInfo = createJoinTableInfo(info.getEntity(), innerEntity, joinTable, reverse);
-                List<JoinTableInfo> joinTablesInfo = info.getJoinTablesInfo();
-                joinTablesInfo.add(joinTableInfo);
-                InsertEventInfo newInfo = new InsertEventInfo(innerEntity,
-                        joinTablesInfo,
-                        info.getProcessedObjects(),
-                        info.getConnection(), info.getType());
-                onInsert(newInfo);
-            }
-        }
     }
 
 
@@ -373,7 +386,6 @@ public class InsertEventListener implements EventListener<InsertEvent>{
     private TableInfo createTableInfoFrom(final String tableName, final Map<String, String> columnsValues) {
         return new TableInfo(tableName, columnsValues, true);
     }
-
 
 
 }
