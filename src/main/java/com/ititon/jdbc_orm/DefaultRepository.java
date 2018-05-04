@@ -82,6 +82,8 @@ public class DefaultRepository<E, ID extends Serializable> implements IDefaultRe
             return (E) entityFromCache;
         }
 
+
+        System.out.println("ID TYPE IS: " + id.getClass());
         try (Connection connection = connectionPool.getConnection()) {
             eventListener.executeEvent(EventType.SELECT, new SelectEvent(connection, entityClass, id));
             return (E) cacheProcessor.getEntity(entityClass, id);

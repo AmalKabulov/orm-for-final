@@ -63,9 +63,10 @@ public class SelectEventListener implements EventListener<SelectEvent> {
         }
 
         System.out.println("SELECT QUERY IS: " + query);
+        System.out.println("ON SELECT EVENT ID TYPE IS: " + event.getId());
         try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             ResultSet resultSet = preparedStatement.executeQuery();
-            onSelect(entityMeta, resultSet);
+            onSelect(entityMeta, resultSet, event.getId());
         }
     }
 
@@ -77,24 +78,31 @@ public class SelectEventListener implements EventListener<SelectEvent> {
      * @param resultSet
      * @throws SQLException
      */
-    public void onSelect(final EntityMeta entityMeta, final ResultSet resultSet) throws SQLException {
+    public void onSelect(final EntityMeta entityMeta, final ResultSet resultSet, final Object searchId) throws SQLException {
         Object entity = null;
 
         String tableName = entityMeta.getTableName();
         String idColumnName = tableName + "." + entityMeta.getIdColumnName();
         Class<?> idColumnType = entityMeta.getIdColumnType();
-        String idColumnFieldName = entityMeta.getIdColumnFieldName();
+
+        EntityMeta depMeta = cacheProcessor.getMeta(idColumnType);
+        boolean isPkForeignKey = false;
+        if (depMeta != null) {
+            idColumnType = depMeta.getIdColumnType();
+            isPkForeignKey = true;
+        }
 
 
         while (resultSet.next()) {
             Map<String, HashSet<String>> processedObjectFields = new HashMap<>();
-//            Set<ProcessedObject> processedObjects = new HashSet<>();
-//            Set<ProcessedObject> processedObjects = new HashSet<>();
             Object id = resultSet.getObject(idColumnName, idColumnType);
-            if (entity == null || !ReflectionUtil.invokeGetter(entity, idColumnFieldName).equals(id)) {
+            if (isNew(entity, entityMeta, id)) {
                 entity = ReflectionUtil.newInstance(entityMeta.getEntityClassName());
             }
-
+            if (isPkForeignKey && searchId != null) {
+                System.out.println(searchId.getClass());
+                ReflectionUtil.invokeSetter(entity, entityMeta.getIdColumnFieldName(), searchId);
+            }
             EntityInfo entityInfo = new EntityInfo(entity, entityMeta, processedObjectFields);
             fillEntity(resultSet, entityInfo);
 
@@ -128,7 +136,8 @@ public class SelectEventListener implements EventListener<SelectEvent> {
     private void processFieldMeta(final ResultSet resultSet,
                                   final EntityInfo entityInfo) throws SQLException {
 
-        if (entityInfo.getCurrentFieldMeta().getAnnotations().containsKey(Column.class)) {
+        Map<Class<? extends Annotation>, Annotation> annotations = entityInfo.getCurrentFieldMeta().getAnnotations();
+        if (annotations.containsKey(Id.class) || annotations.containsKey(Column.class)) {
             processSimple(resultSet, entityInfo);
         } else {
             processComplex(resultSet, entityInfo);
@@ -144,11 +153,22 @@ public class SelectEventListener implements EventListener<SelectEvent> {
         FieldMeta fieldMeta = entityInfo.getCurrentFieldMeta();
         Class<?> fieldType = fieldMeta.getFieldType();
         String columnName = tableName + "." + fieldMeta.getColumnName();
+        EntityMeta depMeta = cacheProcessor.getMeta(fieldType);
+        Object result = null;
+        if (depMeta != null) {
+            result = ReflectionUtil.invokeGetter(entityInfo.getMainEntity(), entityMeta.getIdColumnFieldName());
+            System.out.println("DEP ENTITY: " + result);
+            Object id  = resultSet.getObject(columnName, depMeta.getIdColumnType());
+            System.out.println("RESULT IS: " + id);
+            ReflectionUtil.invokeSetter(result, depMeta.getIdColumnFieldName(), id);
+        } else  {
+            result = resultSet.getObject(columnName, fieldType);
+        }
 
-        Object result = resultSet.getObject(columnName, fieldType);
         if (result != null) {
             ReflectionUtil.invokeSetter(entityInfo.getMainEntity(), fieldMeta.getFieldName(), result);
         }
+
     }
 
 
@@ -343,5 +363,21 @@ public class SelectEventListener implements EventListener<SelectEvent> {
         String entityName = entity.getClass().getName();
 
         entityInfo.getProcessedObjectFields().remove(entityName);
+    }
+
+    private boolean isNew(Object entity, EntityMeta entityMeta, Object compareId) {
+        if (entity == null) {
+            return true;
+        }
+        String idColumnFieldName = entityMeta.getIdColumnFieldName();
+        Object id = ReflectionUtil.invokeGetter(entity, idColumnFieldName);
+        EntityMeta depMeta = cacheProcessor.getMeta(id.getClass());
+        if (depMeta != null) {
+            id = ReflectionUtil.invokeGetter(id, depMeta.getIdColumnFieldName());
+        }
+        if (!Objects.equals(id, compareId)) {
+            return true;
+        }
+        return false;
     }
 }

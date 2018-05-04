@@ -214,8 +214,11 @@ public class EntityCache/*<K extends BaseEntity>*/ /*implements Cache1<EntityCac
     private  <T extends Serializable> T getPrimaryKey(Object entity) {
         T id = null;
         EntityMeta meta = CacheProcessor.getInstance().getMeta(entity.getClass());
+        System.out.println("GETTING PK OF: " + entity);
         if (meta != null) {
+            System.out.println("INVOKING GETTER OF: " + meta.getIdColumnFieldName());
             id = (T) ReflectionUtil.invokeGetter(entity, meta.getIdColumnFieldName());
+            System.out.println("PUTTING WITH ID: " + id);
         }
         return id;
     }

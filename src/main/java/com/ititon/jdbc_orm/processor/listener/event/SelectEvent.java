@@ -35,7 +35,7 @@ public class SelectEvent extends Event {
         this.type = Type.SELECT_WITH_LIMIT;
     }
 
-    public SelectEvent(Connection connection, Type type, Class<?> entityClass, Integer skip, Integer count, Integer id) {
+    public SelectEvent(Connection connection, Type type, Class<?> entityClass, Integer skip, Integer count, Object id) {
         super(connection);
         this.type = type;
         this.entityClass = entityClass;

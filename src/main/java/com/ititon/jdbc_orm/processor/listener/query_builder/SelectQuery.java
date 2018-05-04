@@ -95,6 +95,7 @@ public abstract class SelectQuery {
         buildComplexJoinQuery(entityMeta, columns, processedMetas, joinQueries);
         String allColumns = String.join(", ", columns);
 
+
         return "select " + allColumns + " from " + entityMeta.getTableName() + joinQueries.toString() + ";";
     }
 
