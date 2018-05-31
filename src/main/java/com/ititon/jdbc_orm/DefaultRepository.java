@@ -1,19 +1,13 @@
 package com.ititon.jdbc_orm;
 
-import com.ititon.jdbc_orm.meta.EntityMeta;
 import com.ititon.jdbc_orm.processor.CacheProcessor;
 import com.ititon.jdbc_orm.processor.database.DefaultConnectionPool;
+import com.ititon.jdbc_orm.processor.exception.DefaultOrmException;
 import com.ititon.jdbc_orm.processor.listener.EventListenerDirector;
 import com.ititon.jdbc_orm.processor.listener.event.EventType;
 import com.ititon.jdbc_orm.processor.listener.event.InsertEvent;
 import com.ititon.jdbc_orm.processor.listener.event.SelectEvent;
-import com.ititon.jdbc_orm.processor.exception.DefaultOrmException;
-import com.ititon.jdbc_orm.processor.listener.InsertEventListener;
-import com.ititon.jdbc_orm.processor.listener.SelectEventListener;
-import com.ititon.jdbc_orm.processor.parser.ResultSetParser;
 import com.ititon.jdbc_orm.processor.listener.query_builder.GenericQuery;
-import com.ititon.jdbc_orm.util.Assert;
-import com.ititon.jdbc_orm.util.ReflectionUtil;
 
 import java.io.Serializable;
 import java.sql.Connection;
@@ -26,6 +20,10 @@ public class DefaultRepository<E, ID extends Serializable> implements IDefaultRe
     private final CacheProcessor cacheProcessor = CacheProcessor.getInstance();
     private final DefaultConnectionPool connectionPool = DefaultConnectionPool.getInstance();
     private final EventListenerDirector eventListener = EventListenerDirector.getInstance();
+
+
+    private Class<E> entityClass;
+
 //    private final SelectEventListener selectEventListener = new SelectEventListener();
 //    private final InsertEventListener insertEventListener = new InsertEventListener();
 
@@ -33,7 +31,7 @@ public class DefaultRepository<E, ID extends Serializable> implements IDefaultRe
     @SuppressWarnings("unchecked")
     @Override
     public List<E> findAll() throws DefaultOrmException {
-        Class<E> entityClass = getParametrizeClass();
+//        Class<E> entityClass = getParametrizeClass();
         List<Object> entitiesFromCache = cacheProcessor.getEntitiesByClass(entityClass);
         try (Connection connection = connectionPool.getConnection()){
             Long rowCounts = getRowCounts(entityClass, connection);
@@ -52,7 +50,7 @@ public class DefaultRepository<E, ID extends Serializable> implements IDefaultRe
 
     @SuppressWarnings("unchecked")
     public List<E> findByLimit(final int skip, final int count) throws DefaultOrmException {
-        Class<E> entityClass = getParametrizeClass();
+//        Class<E> entityClass = getParametrizeClass();
         List<Object> entitiesFromCache = cacheProcessor.getEntitiesByClass(entityClass);
 
         if (entitiesFromCache.size() >= skip + count) {
@@ -75,7 +73,7 @@ public class DefaultRepository<E, ID extends Serializable> implements IDefaultRe
     @SuppressWarnings("unchecked")
     @Override
     public E findOne(ID id) throws DefaultOrmException {
-        Class<E> entityClass = getParametrizeClass();
+//        Class<E> entityClass = getParametrizeClass();
         Object entityFromCache = cacheProcessor.getEntity(entityClass, id);
         if (entityFromCache != null) {
             System.out.println("FROM CACHE...");
@@ -95,7 +93,7 @@ public class DefaultRepository<E, ID extends Serializable> implements IDefaultRe
 
     @Override
     public void delete(ID id) throws DefaultOrmException {
-        Class<E> entityClass = getParametrizeClass();
+//        Class<E> entityClass = getParametrizeClass();
         String query = GenericQuery.deleteQuery(entityClass, id);
 
         try (Connection connection = connectionPool.getConnection();
@@ -154,9 +152,9 @@ public class DefaultRepository<E, ID extends Serializable> implements IDefaultRe
     }
 
 
-    @SuppressWarnings("unchecked")
-    private Class<E> getParametrizeClass() {
-        return (Class<E>) ReflectionUtil.getGenericParameterClass(getClass(), 0);
-    }
+//    @SuppressWarnings("unchecked")
+//    private Class<E> getParametrizeClass() {
+//        return (Class<E>) ReflectionUtil.getGenericParameterClass(getClass(), 0);
+//    }
 
 }

@@ -158,6 +158,7 @@ public abstract class SelectQuery {
         if (processedMetas.contains(joinEntity.getEntityClassName())) {
             return null;
         }
+
         Map<Class<? extends Annotation>, Annotation> annotations = fieldMeta.getAnnotations();
         ManyToMany manyToMany = (ManyToMany) annotations.get(ManyToMany.class);
 
@@ -217,6 +218,8 @@ public abstract class SelectQuery {
 
         return buildJoinQuery(joinTableName, joinTableIdColumn, mainTableIdColumn);
     }
+
+
 
     /**
      * Builds join query with one to many association;
@@ -405,6 +408,5 @@ public abstract class SelectQuery {
             entityClass = fieldMeta.getFieldType();
         }
         return CACHE_PROCESSOR.getMeta(entityClass);
-
     }
 }
